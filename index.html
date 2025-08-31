@@ -1,851 +1,1004 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Education Expense Analytics Dashboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
 
-        .dashboard-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
-            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(10px);
-            overflow: hidden;
-        }
+      .dashboard-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        box-shadow: 0 25px 45px rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(10px);
+        overflow: hidden;
+      }
 
-        .header {
-            background: linear-gradient(135deg, #4f46e5, #7c3aed);
-            color: white;
-            padding: 30px;
-            text-align: center;
-            position: relative;
+      .header {
+        background: linear-gradient(135deg, #4f46e5, #7c3aed);
+        color: white;
+        padding: 30px;
+        text-align: center;
+        position: relative;
+      }
+
+      .header h1 {
+        font-size: 2.5em;
+        font-weight: 700;
+        margin-bottom: 10px;
+      }
+
+      .header p {
+        font-size: 1.2em;
+        opacity: 0.9;
+      }
+
+      .refresh-btn {
+        position: absolute;
+        right: 30px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(255, 255, 255, 0.2);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 50px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s ease;
+      }
+
+      .refresh-btn:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: translateY(-50%) scale(1.05);
+      }
+
+      .config-notice {
+        background: #fef3c7;
+        color: #92400e;
+        padding: 15px;
+        margin: 20px;
+        border-radius: 10px;
+        border-left: 4px solid #f59e0b;
+        font-size: 0.9em;
+      }
+
+      .summary-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        padding: 30px;
+        background: #f8fafc;
+      }
+
+      .summary-card {
+        background: white;
+        padding: 25px;
+        border-radius: 15px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+        text-align: center;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .summary-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+      }
+
+      .summary-card h3 {
+        color: #64748b;
+        font-size: 0.9em;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 10px;
+      }
+
+      .summary-card .value {
+        font-size: 2.2em;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 5px;
+      }
+
+      .summary-card .change {
+        font-size: 0.9em;
+        font-weight: 500;
+      }
+
+      .positive {
+        color: #059669;
+      }
+      .negative {
+        color: #dc2626;
+      }
+
+      .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        gap: 30px;
+        padding: 30px;
+      }
+
+      .chart-container {
+        background: white;
+        border-radius: 20px;
+        padding: 25px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .chart-container:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+      }
+
+      .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #f1f5f9;
+      }
+
+      .chart-title {
+        font-size: 1.4em;
+        font-weight: 700;
+        color: #1e293b;
+      }
+
+      .chart-subtitle {
+        font-size: 0.9em;
+        color: #64748b;
+        margin-top: 5px;
+      }
+
+      .chart-canvas {
+        position: relative;
+        height: 350px;
+        margin: 20px 0;
+      }
+
+      .loading {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 200px;
+        font-size: 1.2em;
+        color: #64748b;
+      }
+
+      .spinner {
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #4f46e5;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        animation: spin 1s linear infinite;
+        margin-right: 15px;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .error {
+        background: #fee2e2;
+        color: #dc2626;
+        padding: 20px;
+        border-radius: 10px;
+        margin: 20px;
+        text-align: center;
+      }
+
+      .last-updated {
+        text-align: center;
+        color: #64748b;
+        font-size: 0.9em;
+        padding: 20px;
+        background: #f8fafc;
+      }
+
+      .filter-controls {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+
+      .filter-select {
+        padding: 8px 15px;
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        background: white;
+        font-size: 0.9em;
+        transition: border-color 0.3s ease;
+      }
+
+      .filter-select:focus {
+        outline: none;
+        border-color: #4f46e5;
+      }
+
+      @media (max-width: 768px) {
+        .charts-grid {
+          grid-template-columns: 1fr;
         }
 
         .header h1 {
-            font-size: 2.5em;
-            font-weight: 700;
-            margin-bottom: 10px;
-        }
-
-        .header p {
-            font-size: 1.2em;
-            opacity: 0.9;
+          font-size: 2em;
         }
 
         .refresh-btn {
-            position: absolute;
-            right: 30px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: rgba(255, 255, 255, 0.2);
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            color: white;
-            padding: 12px 24px;
-            border-radius: 50px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
+          position: static;
+          transform: none;
+          margin-top: 15px;
         }
-
-        .refresh-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: translateY(-50%) scale(1.05);
-        }
-
-        .summary-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            padding: 30px;
-            background: #f8fafc;
-        }
-
-        .summary-card {
-            background: white;
-            padding: 25px;
-            border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
-            text-align: center;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-
-        .summary-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
-        }
-
-        .summary-card h3 {
-            color: #64748b;
-            font-size: 0.9em;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 10px;
-        }
-
-        .summary-card .value {
-            font-size: 2.2em;
-            font-weight: 700;
-            color: #1e293b;
-            margin-bottom: 5px;
-        }
-
-        .summary-card .change {
-            font-size: 0.9em;
-            font-weight: 500;
-        }
-
-        .positive { color: #059669; }
-        .negative { color: #dc2626; }
-
-        .charts-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-            gap: 30px;
-            padding: 30px;
-        }
-
-        .chart-container {
-            background: white;
-            border-radius: 20px;
-            padding: 25px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-
-        .chart-container:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-        }
-
-        .chart-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #f1f5f9;
-        }
-
-        .chart-title {
-            font-size: 1.4em;
-            font-weight: 700;
-            color: #1e293b;
-        }
-
-        .chart-subtitle {
-            font-size: 0.9em;
-            color: #64748b;
-            margin-top: 5px;
-        }
-
-        .chart-canvas {
-            position: relative;
-            height: 350px;
-            margin: 20px 0;
-        }
-
-        .loading {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 200px;
-            font-size: 1.2em;
-            color: #64748b;
-        }
-
-        .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #4f46e5;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
-            margin-right: 15px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .error {
-            background: #fee2e2;
-            color: #dc2626;
-            padding: 20px;
-            border-radius: 10px;
-            margin: 20px;
-            text-align: center;
-        }
-
-        .last-updated {
-            text-align: center;
-            color: #64748b;
-            font-size: 0.9em;
-            padding: 20px;
-            background: #f8fafc;
-        }
-
-        /* Custom tooltip styles */
-        .chartjs-tooltip {
-            background: rgba(0, 0, 0, 0.9) !important;
-            border-radius: 8px !important;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3) !important;
-        }
-
-        .filter-controls {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-
-        .filter-select {
-            padding: 8px 15px;
-            border: 2px solid #e2e8f0;
-            border-radius: 8px;
-            background: white;
-            font-size: 0.9em;
-            transition: border-color 0.3s ease;
-        }
-
-        .filter-select:focus {
-            outline: none;
-            border-color: #4f46e5;
-        }
-
-        @media (max-width: 768px) {
-            .charts-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .header h1 {
-                font-size: 2em;
-            }
-            
-            .refresh-btn {
-                position: static;
-                transform: none;
-                margin-top: 15px;
-            }
-        }
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="dashboard-container">
-        <div class="header">
-            <h1>Education Expense Analytics</h1>
-            <p>Real-time insights and comprehensive expense tracking</p>
-            <button class="refresh-btn" onclick="loadData()">
-                <span id="refresh-icon">🔄</span> Refresh Data
-            </button>
+      <div class="header">
+        <h1>Education Expense Analytics</h1>
+        <p>Real-time insights from Google Sheets data</p>
+        <button class="refresh-btn" onclick="loadData()">
+          <span id="refresh-icon">🔄</span> Refresh Data
+        </button>
+      </div>
+
+      <div class="config-notice" id="config-notice">
+        <strong>Setup Required:</strong> Replace
+        YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE with your actual Apps Script
+        Web App URL and set USE_LIVE_DATA to true.
+      </div>
+
+      <div class="summary-cards">
+        <div class="summary-card">
+          <h3>Total Expenses</h3>
+          <div class="value" id="total-amount">₹0</div>
+          <div class="change" id="total-change">Loading...</div>
+        </div>
+        <div class="summary-card">
+          <h3>Total Transactions</h3>
+          <div class="value" id="total-transactions">0</div>
+          <div class="change" id="transaction-change">Loading...</div>
+        </div>
+        <div class="summary-card">
+          <h3>Average Amount</h3>
+          <div class="value" id="avg-amount">₹0</div>
+          <div class="change" id="avg-change">Loading...</div>
+        </div>
+        <div class="summary-card">
+          <h3>Recent Activity</h3>
+          <div class="value" id="recent-activity">0</div>
+          <div class="change">Last 30 days</div>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-container">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">Expenses by Category</div>
+              <div class="chart-subtitle">
+                Distribution of education expenses
+              </div>
+            </div>
+          </div>
+          <div class="chart-canvas">
+            <canvas id="categoryChart"></canvas>
+          </div>
         </div>
 
-        <div class="summary-cards">
-            <div class="summary-card">
-                <h3>Total Expenses</h3>
-                <div class="value" id="total-amount">₹0</div>
-                <div class="change" id="total-change">Loading...</div>
+        <div class="chart-container">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">Payment Methods</div>
+              <div class="chart-subtitle">Transaction mode analysis</div>
             </div>
-            <div class="summary-card">
-                <h3>Total Transactions</h3>
-                <div class="value" id="total-transactions">0</div>
-                <div class="change" id="transaction-change">Loading...</div>
-            </div>
-            <div class="summary-card">
-                <h3>Average Amount</h3>
-                <div class="value" id="avg-amount">₹0</div>
-                <div class="change" id="avg-change">Loading...</div>
-            </div>
-            <div class="summary-card">
-                <h3>Recent Activity</h3>
-                <div class="value" id="recent-activity">0</div>
-                <div class="change">Last 30 days</div>
-            </div>
+          </div>
+          <div class="chart-canvas">
+            <canvas id="paymentChart"></canvas>
+          </div>
         </div>
 
-        <div class="charts-grid">
-            <div class="chart-container">
-                <div class="chart-header">
-                    <div>
-                        <div class="chart-title">Expenses by Category</div>
-                        <div class="chart-subtitle">Distribution of education expenses</div>
-                    </div>
-                </div>
-                <div class="chart-canvas">
-                    <canvas id="categoryChart"></canvas>
-                </div>
+        <div class="chart-container">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">Monthly Trends</div>
+              <div class="chart-subtitle">Spending patterns over time</div>
             </div>
-
-            <div class="chart-container">
-                <div class="chart-header">
-                    <div>
-                        <div class="chart-title">Payment Methods</div>
-                        <div class="chart-subtitle">Transaction mode analysis</div>
-                    </div>
-                </div>
-                <div class="chart-canvas">
-                    <canvas id="paymentChart"></canvas>
-                </div>
+            <div class="filter-controls">
+              <select
+                class="filter-select"
+                id="yearFilter"
+                onchange="updateMonthlyChart()"
+              >
+                <option value="">All Years</option>
+              </select>
             </div>
-
-            <div class="chart-container">
-                <div class="chart-header">
-                    <div>
-                        <div class="chart-title">Monthly Trends</div>
-                        <div class="chart-subtitle">Spending patterns over time</div>
-                    </div>
-                    <div class="filter-controls">
-                        <select class="filter-select" id="yearFilter" onchange="updateMonthlyChart()">
-                            <option value="">All Years</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="chart-canvas">
-                    <canvas id="monthlyChart"></canvas>
-                </div>
-            </div>
-
-            <div class="chart-container">
-                <div class="chart-header">
-                    <div>
-                        <div class="chart-title">Top Expenses</div>
-                        <div class="chart-subtitle">Highest individual transactions</div>
-                    </div>
-                </div>
-                <div class="chart-canvas">
-                    <canvas id="topExpensesChart"></canvas>
-                </div>
-            </div>
+          </div>
+          <div class="chart-canvas">
+            <canvas id="monthlyChart"></canvas>
+          </div>
         </div>
 
-        <div class="last-updated" id="last-updated">
-            Last updated: Loading...
+        <div class="chart-container">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">Top Expenses</div>
+              <div class="chart-subtitle">Highest individual transactions</div>
+            </div>
+          </div>
+          <div class="chart-canvas">
+            <canvas id="topExpensesChart"></canvas>
+          </div>
         </div>
+      </div>
+
+      <div class="last-updated" id="last-updated">Last updated: Loading...</div>
     </div>
 
     <script>
-        // Configuration - Replace with your Google Apps Script Web App URL
-        const SCRIPT_URL = 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE';
-        
-        let globalData = [];
-        let charts = {};
+      // Configuration - Replace with your Google Apps Script Web App URL
+      const SCRIPT_URL =
+        "https://script.google.com/macros/s/AKfycbw06WKOwqsbad3nrsB_BMiPwI2gwVX943DLRLG6NPfFUKV1gsyt6IW0j26mBd8M1Yiw/exec";
 
-        // Color palettes for charts
-        const colorPalettes = {
-            category: [
-                '#4f46e5', '#7c3aed', '#ec4899', '#ef4444', '#f59e0b',
-                '#10b981', '#06b6d4', '#8b5cf6', '#f97316', '#84cc16'
-            ],
-            payment: [
-                '#3b82f6', '#1d4ed8', '#1e40af', '#1e3a8a', '#312e81'
-            ],
-            monthly: '#6366f1',
-            expenses: [
-                '#ef4444', '#dc2626', '#b91c1c', '#991b1b', '#7f1d1d'
-            ]
+      // Set to true to use live Google Sheets data, false to use sample data
+      const USE_LIVE_DATA = true;
+
+      let globalData = [];
+      let charts = {};
+
+      // Color palettes for charts
+      const colorPalettes = {
+        category: [
+          "#4f46e5",
+          "#7c3aed",
+          "#ec4899",
+          "#ef4444",
+          "#f59e0b",
+          "#10b981",
+          "#06b6d4",
+          "#8b5cf6",
+          "#f97316",
+          "#84cc16",
+        ],
+        payment: ["#3b82f6", "#1d4ed8", "#1e40af", "#1e3a8a", "#312e81"],
+        monthly: "#6366f1",
+        expenses: ["#ef4444", "#dc2626", "#b91c1c", "#991b1b", "#7f1d1d"],
+      };
+
+      // Initialize dashboard
+      document.addEventListener("DOMContentLoaded", function () {
+        updateConfigNotice();
+        loadData();
+
+        // Set up auto-refresh every 5 minutes
+        setInterval(loadData, 5 * 60 * 1000);
+      });
+
+      function updateConfigNotice() {
+        const notice = document.getElementById("config-notice");
+        if (
+          USE_LIVE_DATA &&
+          SCRIPT_URL !== "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE"
+        ) {
+          notice.style.display = "none";
+        } else {
+          notice.style.display = "block";
+        }
+      }
+
+      // Load data from Google Apps Script
+      async function loadData() {
+        try {
+          showLoading();
+
+          let result;
+
+          if (
+            USE_LIVE_DATA &&
+            SCRIPT_URL !== "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE"
+          ) {
+            // Fetch from Google Sheets via Apps Script
+            const response = await fetch(`${SCRIPT_URL}?action=getData`);
+
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            result = await response.json();
+            // console.log(result);
+            if (result.status === "error") {
+              throw new Error(result.error);
+            }
+          } else {
+            // Use sample data matching your Apps Script structure
+            result = generateSampleData();
+          }
+          globalData = result.data || [];
+
+          // 🔑 Fix: ensure parsedDate is a real Date object
+          globalData.forEach((item) => {
+            if (item.parsedDate) {
+              item.parsedDate = new Date(item.parsedDate);
+            }
+          });
+
+          updateSummaryCards(result);
+          createAllCharts();
+          updateLastUpdated(result.lastUpdated);
+        } catch (error) {
+          showError("Failed to load data: " + error.message);
+          console.error("Error loading data:", error);
+        }
+      }
+
+      // Generate sample data matching your Apps Script structure
+      function generateSampleData() {
+        const sampleData = [
+          {
+            id: 1,
+            date: "Feb 2025",
+            description: "SEED Contribution 11 students",
+            amount: 141500,
+            finalAmount: 141500,
+            type: "NEFT Transaction",
+            category: "Educational Support",
+            remarks: "",
+            fundTransfer: "NEFT",
+            contributions: "",
+            parsedDate: new Date("2025-02-15"),
+          },
+          {
+            id: 2,
+            date: "Feb 2025",
+            description: "Scholarships for 52 students",
+            amount: 528000,
+            finalAmount: 528000,
+            type: "NEFT Transaction",
+            category: "Scholarships",
+            remarks: "",
+            fundTransfer: "NEFT",
+            contributions: "",
+            parsedDate: new Date("2025-02-20"),
+          },
+          {
+            id: 3,
+            date: "Dec 2024",
+            description: "Semester Fees for two students",
+            amount: 27000,
+            finalAmount: 27000,
+            type: "NEFT Transaction",
+            category: "Institution Fees",
+            remarks: "",
+            fundTransfer: "NEFT",
+            contributions: "",
+            parsedDate: new Date("2024-12-15"),
+          },
+          {
+            id: 4,
+            date: "Feb 2017",
+            description: "Scholarship for 20 Students",
+            amount: 15970,
+            finalAmount: 15970,
+            type: "NEFT Transaction",
+            category: "Scholarships",
+            remarks: "",
+            fundTransfer: "NEFT",
+            contributions: "",
+            parsedDate: new Date("2017-02-15"),
+          },
+          {
+            id: 5,
+            date: "Jan 2017",
+            description:
+              "CAP conducted by Prof. Kasilingam on Financial Intelligence for PEC students",
+            amount: 2000,
+            finalAmount: 2000,
+            type: "Cash",
+            category: "Special Programs",
+            remarks: "",
+            fundTransfer: "Cash",
+            contributions: "",
+            parsedDate: new Date("2017-01-31"),
+          },
+          {
+            id: 6,
+            date: "Apr 2024",
+            description: "Womens day Celebration",
+            amount: 5000,
+            finalAmount: 5000,
+            type: "NEFT Transaction",
+            category: "Events & Programs",
+            remarks: "",
+            fundTransfer: "NEFT",
+            contributions: "",
+            parsedDate: new Date("2024-04-11"),
+          },
+        ];
+
+        return {
+          data: sampleData,
+          totalRecords: sampleData.length,
+          lastUpdated: new Date().toISOString(),
+          status: "success",
         };
+      }
 
-        // Initialize dashboard
-        document.addEventListener('DOMContentLoaded', function() {
-            loadData();
-            
-            // Set up auto-refresh every 5 minutes
-            setInterval(loadData, 5 * 60 * 1000);
+      function showLoading() {
+        const summaryCards = document.querySelectorAll(".summary-card .value");
+        summaryCards.forEach((card) => {
+          card.innerHTML = '<div class="spinner"></div>';
+        });
+      }
+
+      function showError(message) {
+        const container = document.querySelector(".charts-grid");
+        container.innerHTML = `<div class="error">${message}</div>`;
+      }
+
+      function updateSummaryCards(data) {
+        // Calculate totals using finalAmount as per your script
+        const totalAmount = globalData.reduce(
+          (sum, item) => sum + (item.finalAmount || 0),
+          0
+        );
+        const avgAmount = totalAmount / globalData.length || 0;
+
+        // Calculate recent activity (last 30 days)
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const recentActivity = globalData.filter((item) => {
+          const itemDate = new Date(item.parsedDate);
+          return itemDate >= thirtyDaysAgo;
+        }).length;
+
+        document.getElementById(
+          "total-amount"
+        ).textContent = `₹${totalAmount.toLocaleString("en-IN")}`;
+        document.getElementById("total-transactions").textContent =
+          globalData.length;
+        document.getElementById("avg-amount").textContent = `₹${Math.round(
+          avgAmount
+        ).toLocaleString("en-IN")}`;
+        document.getElementById("recent-activity").textContent = recentActivity;
+
+        // Update change indicators
+        document.getElementById(
+          "total-change"
+        ).innerHTML = `<span class="positive">Total records: ${
+          data.totalRecords || globalData.length
+        }</span>`;
+        document.getElementById(
+          "transaction-change"
+        ).innerHTML = `<span class="positive">Active records with amounts > 0</span>`;
+        document.getElementById(
+          "avg-change"
+        ).innerHTML = `<span class="positive">Per transaction average</span>`;
+      }
+
+      function createAllCharts() {
+        createCategoryChart();
+        createPaymentChart();
+        createMonthlyChart();
+        createTopExpensesChart();
+        populateYearFilter();
+      }
+
+      function createCategoryChart() {
+        const ctx = document.getElementById("categoryChart").getContext("2d");
+
+        if (charts.category) {
+          charts.category.destroy();
+        }
+
+        // Group data by category using finalAmount
+        const categoryData = {};
+        globalData.forEach((item) => {
+          const category = item.category || "Other";
+          if (!categoryData[category]) {
+            categoryData[category] = 0;
+          }
+          categoryData[category] += item.finalAmount || 0;
         });
 
-        // Load data from Google Apps Script
-        async function loadData() {
-            try {
-                showLoading();
-                
-                // Simulate API call - Replace with actual fetch
-                // const response = await fetch(`${SCRIPT_URL}?action=getData`);
-                // const result = await response.json();
-                
-                // For demo purposes, using sample data based on your sheet
-                const result = generateSampleData();
-                
-                globalData = result.data || [];
-                updateSummaryCards(result);
-                createAllCharts();
-                updateLastUpdated();
-                
-            } catch (error) {
-                showError('Failed to load data. Please check your connection and try again.');
-                console.error('Error loading data:', error);
+        const labels = Object.keys(categoryData);
+        const data = Object.values(categoryData);
+
+        charts.category = new Chart(ctx, {
+          type: "doughnut",
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                data: data,
+                backgroundColor: colorPalettes.category.slice(0, labels.length),
+                borderWidth: 3,
+                borderColor: "#fff",
+                hoverBorderWidth: 5,
+                hoverBorderColor: "#fff",
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: "bottom",
+                labels: {
+                  padding: 20,
+                  usePointStyle: true,
+                  font: {
+                    size: 12,
+                  },
+                },
+              },
+              tooltip: {
+                backgroundColor: "rgba(0, 0, 0, 0.9)",
+                titleColor: "#fff",
+                bodyColor: "#fff",
+                borderColor: "#4f46e5",
+                borderWidth: 2,
+                cornerRadius: 8,
+                callbacks: {
+                  label: function (context) {
+                    const total = context.dataset.data.reduce(
+                      (a, b) => a + b,
+                      0
+                    );
+                    const percentage = ((context.parsed / total) * 100).toFixed(
+                      1
+                    );
+                    return `${context.label}: ₹${context.parsed.toLocaleString(
+                      "en-IN"
+                    )} (${percentage}%)`;
+                  },
+                },
+              },
+            },
+            animation: {
+              animateRotate: true,
+              duration: 2000,
+            },
+          },
+        });
+      }
+
+      function createPaymentChart() {
+        const ctx = document.getElementById("paymentChart").getContext("2d");
+
+        if (charts.payment) {
+          charts.payment.destroy();
+        }
+
+        // Group data by payment type using finalAmount
+        const paymentData = {};
+        globalData.forEach((item) => {
+          const type = item.type || "Other";
+          if (!paymentData[type]) {
+            paymentData[type] = 0;
+          }
+          paymentData[type] += item.finalAmount || 0;
+        });
+
+        const labels = Object.keys(paymentData);
+        const data = Object.values(paymentData);
+
+        charts.payment = new Chart(ctx, {
+          type: "pie",
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                data: data,
+                backgroundColor: colorPalettes.payment.slice(0, labels.length),
+                borderWidth: 3,
+                borderColor: "#fff",
+                hoverBorderWidth: 5,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: "bottom",
+                labels: {
+                  padding: 20,
+                  usePointStyle: true,
+                },
+              },
+              tooltip: {
+                backgroundColor: "rgba(0, 0, 0, 0.9)",
+                callbacks: {
+                  label: function (context) {
+                    const total = context.dataset.data.reduce(
+                      (a, b) => a + b,
+                      0
+                    );
+                    const percentage = ((context.parsed / total) * 100).toFixed(
+                      1
+                    );
+                    return `${context.label}: ₹${context.parsed.toLocaleString(
+                      "en-IN"
+                    )} (${percentage}%)`;
+                  },
+                },
+              },
+            },
+            animation: {
+              duration: 2000,
+            },
+          },
+        });
+      }
+
+      function createMonthlyChart() {
+        const ctx = document.getElementById("monthlyChart").getContext("2d");
+
+        if (charts.monthly) {
+          charts.monthly.destroy();
+        }
+
+        // Group data by month using parsedDate and finalAmount
+        const monthlyData = {};
+        globalData.forEach((item) => {
+          if (item.parsedDate) {
+            const monthYear = item.parsedDate.toLocaleDateString("en-IN", {
+              year: "numeric",
+              month: "short",
+            });
+            if (!monthlyData[monthYear]) {
+              monthlyData[monthYear] = 0;
             }
+            monthlyData[monthYear] += item.finalAmount || 0;
+          }
+        });
+
+        // Sort by date
+        const sortedEntries = Object.entries(monthlyData).sort(
+          (a, b) => new Date(a[0]) - new Date(b[0])
+        );
+        const labels = sortedEntries.map((entry) => entry[0]);
+        const data = sortedEntries.map((entry) => entry[1]);
+
+        charts.monthly = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: "Monthly Expenses",
+                data: data,
+                borderColor: colorPalettes.monthly,
+                backgroundColor: colorPalettes.monthly + "20",
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: colorPalettes.monthly,
+                pointBorderColor: "#fff",
+                pointBorderWidth: 2,
+                pointRadius: 6,
+                pointHoverRadius: 8,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: false,
+              },
+              tooltip: {
+                backgroundColor: "rgba(0, 0, 0, 0.9)",
+                callbacks: {
+                  label: function (context) {
+                    return `Expenses: ₹${context.parsed.y.toLocaleString(
+                      "en-IN"
+                    )}`;
+                  },
+                },
+              },
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  callback: function (value) {
+                    return "₹" + value.toLocaleString("en-IN");
+                  },
+                },
+              },
+            },
+            animation: {
+              duration: 2000,
+              easing: "easeInOutQuart",
+            },
+          },
+        });
+      }
+
+      function createTopExpensesChart() {
+        const ctx = document
+          .getElementById("topExpensesChart")
+          .getContext("2d");
+
+        if (charts.topExpenses) {
+          charts.topExpenses.destroy();
         }
 
-        // Generate sample data based on your sheet structure
-        function generateSampleData() {
-            const sampleData = [
-                {
-                    id: 1,
-                    date: 'Feb 2023',
-                    description: 'Thalaivar Subbhiah Gov High school, Reddiyarpalayam',
-                    amount: 10000,
-                    type: 'NEFT Transaction',
-                    category: 'Institution Fees',
-                    finalAmount: 10000,
-                    parsedDate: new Date('2023-02-15')
-                },
-                {
-                    id: 2,
-                    date: 'Nov 2022',
-                    description: 'Le Banyan 2022 Education Support',
-                    amount: 89053,
-                    actualGiven: 76553,
-                    type: 'NEFT Transaction',
-                    category: 'Educational Support',
-                    finalAmount: 76553,
-                    parsedDate: new Date('2022-11-15')
-                },
-                {
-                    id: 3,
-                    date: 'Nov 2022',
-                    description: 'N Selvaraj\'s 2nd Year College fees',
-                    amount: 4500,
-                    type: 'Cash',
-                    category: 'Institution Fees',
-                    finalAmount: 4500,
-                    parsedDate: new Date('2022-11-20')
-                },
-                {
-                    id: 4,
-                    date: 'Oct 2022',
-                    description: 'Admission fees for Blind brothers BEd',
-                    amount: 5430,
-                    type: 'NEFT Transaction',
-                    category: 'Admission Fees',
-                    finalAmount: 5430,
-                    parsedDate: new Date('2022-10-15')
-                },
-                {
-                    id: 5,
-                    date: 'June 2022',
-                    description: 'Exam fees for a student',
-                    amount: 2600,
-                    type: 'Cash',
-                    category: 'Examination Fees',
-                    finalAmount: 2600,
-                    parsedDate: new Date('2022-06-15')
-                },
-                {
-                    id: 6,
-                    date: 'April 2022',
-                    description: 'Kirubalaya - Education fund',
-                    amount: 25000,
-                    type: 'NEFT Transaction',
-                    category: 'Educational Support',
-                    finalAmount: 25000,
-                    parsedDate: new Date('2022-04-30')
-                },
-                {
-                    id: 7,
-                    date: 'Aug 2021',
-                    description: 'Ph.D material for Braille - Janardhanan',
-                    amount: 18000,
-                    type: 'NEFT Transaction',
-                    category: 'Stationery & Books',
-                    finalAmount: 18000,
-                    parsedDate: new Date('2021-08-27')
-                }
-            ];
+        // Get top 5 expenses by finalAmount
+        const topExpenses = [...globalData]
+          .sort((a, b) => (b.finalAmount || 0) - (a.finalAmount || 0))
+          .slice(0, 5);
 
-            return {
-                data: sampleData,
-                totalRecords: sampleData.length,
-                lastUpdated: new Date().toISOString()
-            };
+        const labels = topExpenses.map((item) => {
+          const desc = item.description || "No description";
+          return desc.length > 25 ? desc.substring(0, 25) + "..." : desc;
+        });
+        const data = topExpenses.map((item) => item.finalAmount || 0);
+
+        charts.topExpenses = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: "Amount",
+                data: data,
+                backgroundColor: colorPalettes.expenses.slice(0, data.length),
+                borderRadius: 8,
+                borderSkipped: false,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: "y",
+            plugins: {
+              legend: {
+                display: false,
+              },
+              tooltip: {
+                backgroundColor: "rgba(0, 0, 0, 0.9)",
+                callbacks: {
+                  title: function (context) {
+                    const index = context[0].dataIndex;
+                    return topExpenses[index].description || "No description";
+                  },
+                  label: function (context) {
+                    return `Amount: ₹${context.parsed.x.toLocaleString(
+                      "en-IN"
+                    )}`;
+                  },
+                },
+              },
+            },
+            scales: {
+              x: {
+                beginAtZero: true,
+                ticks: {
+                  callback: function (value) {
+                    return "₹" + value.toLocaleString("en-IN");
+                  },
+                },
+              },
+            },
+            animation: {
+              duration: 2000,
+              easing: "easeInOutQuart",
+            },
+          },
+        });
+      }
+
+      function populateYearFilter() {
+        const yearFilter = document.getElementById("yearFilter");
+        const years = [
+          ...new Set(
+            globalData
+              .filter((item) => item.parsedDate)
+              .map((item) => item.parsedDate.getFullYear())
+          ),
+        ]
+          .sort()
+          .reverse();
+
+        yearFilter.innerHTML = '<option value="">All Years</option>';
+        years.forEach((year) => {
+          yearFilter.innerHTML += `<option value="${year}">${year}</option>`;
+        });
+      }
+
+      function updateMonthlyChart() {
+        const selectedYear = document.getElementById("yearFilter").value;
+        let filteredData = globalData;
+
+        if (selectedYear) {
+          filteredData = globalData.filter(
+            (item) =>
+              item.parsedDate && item.parsedDate.getFullYear() == selectedYear
+          );
         }
 
-        function showLoading() {
-            const summaryCards = document.querySelectorAll('.summary-card .value');
-            summaryCards.forEach(card => {
-                card.innerHTML = '<div class="spinner"></div>';
+        // Recreate monthly chart with filtered data
+        const monthlyData = {};
+        filteredData.forEach((item) => {
+          if (item.parsedDate) {
+            const monthYear = item.parsedDate.toLocaleDateString("en-IN", {
+              year: "numeric",
+              month: "short",
             });
-        }
-
-        function showError(message) {
-            const container = document.querySelector('.charts-grid');
-            container.innerHTML = `<div class="error">${message}</div>`;
-        }
-
-        function updateSummaryCards(data) {
-            const totalAmount = globalData.reduce((sum, item) => sum + item.finalAmount, 0);
-            const avgAmount = totalAmount / globalData.length || 0;
-            const recentActivity = globalData.filter(item => {
-                const thirtyDaysAgo = new Date();
-                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-                return new Date(item.parsedDate) >= thirtyDaysAgo;
-            }).length;
-
-            document.getElementById('total-amount').textContent = `₹${totalAmount.toLocaleString('en-IN')}`;
-            document.getElementById('total-transactions').textContent = globalData.length;
-            document.getElementById('avg-amount').textContent = `₹${Math.round(avgAmount).toLocaleString('en-IN')}`;
-            document.getElementById('recent-activity').textContent = recentActivity;
-
-            // Add some sample change indicators
-            document.getElementById('total-change').innerHTML = '<span class="positive">+12.5% from last month</span>';
-            document.getElementById('transaction-change').innerHTML = '<span class="positive">+3 new transactions</span>';
-            document.getElementById('avg-change').innerHTML = '<span class="negative">-5.2% from average</span>';
-        }
-
-        function createAllCharts() {
-            createCategoryChart();
-            createPaymentChart();
-            createMonthlyChart();
-            createTopExpensesChart();
-            populateYearFilter();
-        }
-
-        function createCategoryChart() {
-            const ctx = document.getElementById('categoryChart').getContext('2d');
-            
-            // Destroy existing chart
-            if (charts.category) {
-                charts.category.destroy();
+            if (!monthlyData[monthYear]) {
+              monthlyData[monthYear] = 0;
             }
+            monthlyData[monthYear] += item.finalAmount || 0;
+          }
+        });
 
-            // Group data by category
-            const categoryData = {};
-            globalData.forEach(item => {
-                if (!categoryData[item.category]) {
-                    categoryData[item.category] = 0;
-                }
-                categoryData[item.category] += item.finalAmount;
-            });
+        const sortedEntries = Object.entries(monthlyData).sort(
+          (a, b) => new Date(a[0]) - new Date(b[0])
+        );
+        const labels = sortedEntries.map((entry) => entry[0]);
+        const data = sortedEntries.map((entry) => entry[1]);
 
-            const labels = Object.keys(categoryData);
-            const data = Object.values(categoryData);
+        charts.monthly.data.labels = labels;
+        charts.monthly.data.datasets[0].data = data;
+        charts.monthly.update();
+      }
 
-            charts.category = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: data,
-                        backgroundColor: colorPalettes.category.slice(0, labels.length),
-                        borderWidth: 3,
-                        borderColor: '#fff',
-                        hoverBorderWidth: 5,
-                        hoverBorderColor: '#fff'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                padding: 20,
-                                usePointStyle: true,
-                                font: {
-                                    size: 12
-                                }
-                            }
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.9)',
-                            titleColor: '#fff',
-                            bodyColor: '#fff',
-                            borderColor: '#4f46e5',
-                            borderWidth: 2,
-                            cornerRadius: 8,
-                            callbacks: {
-                                label: function(context) {
-                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                    const percentage = ((context.parsed / total) * 100).toFixed(1);
-                                    return `${context.label}: ₹${context.parsed.toLocaleString('en-IN')} (${percentage}%)`;
-                                }
-                            }
-                        }
-                    },
-                    animation: {
-                        animateRotate: true,
-                        duration: 2000
-                    }
-                }
-            });
-        }
+      function updateLastUpdated(lastUpdated) {
+        const updateTime = lastUpdated ? new Date(lastUpdated) : new Date();
+        document.getElementById(
+          "last-updated"
+        ).textContent = `Last updated: ${updateTime.toLocaleDateString(
+          "en-IN"
+        )} at ${updateTime.toLocaleTimeString("en-IN")}`;
+      }
 
-        function createPaymentChart() {
-            const ctx = document.getElementById('paymentChart').getContext('2d');
-            
-            if (charts.payment) {
-                charts.payment.destroy();
-            }
+      // Auto-refresh animation
+      function animateRefresh() {
+        const icon = document.getElementById("refresh-icon");
+        icon.style.transform = "rotate(360deg)";
+        icon.style.transition = "transform 0.5s ease";
+        setTimeout(() => {
+          icon.style.transform = "rotate(0deg)";
+        }, 500);
+      }
 
-            // Group data by payment type
-            const paymentData = {};
-            globalData.forEach(item => {
-                if (!paymentData[item.type]) {
-                    paymentData[item.type] = 0;
-                }
-                paymentData[item.type] += item.finalAmount;
-            });
-
-            const labels = Object.keys(paymentData);
-            const data = Object.values(paymentData);
-
-            charts.payment = new Chart(ctx, {
-                type: 'pie',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: data,
-                        backgroundColor: colorPalettes.payment.slice(0, labels.length),
-                        borderWidth: 3,
-                        borderColor: '#fff',
-                        hoverBorderWidth: 5
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                padding: 20,
-                                usePointStyle: true
-                            }
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.9)',
-                            callbacks: {
-                                label: function(context) {
-                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                    const percentage = ((context.parsed / total) * 100).toFixed(1);
-                                    return `${context.label}: ₹${context.parsed.toLocaleString('en-IN')} (${percentage}%)`;
-                                }
-                            }
-                        }
-                    },
-                    animation: {
-                        duration: 2000
-                    }
-                }
-            });
-        }
-
-        function createMonthlyChart() {
-            const ctx = document.getElementById('monthlyChart').getContext('2d');
-            
-            if (charts.monthly) {
-                charts.monthly.destroy();
-            }
-
-            // Group data by month
-            const monthlyData = {};
-            globalData.forEach(item => {
-                const monthYear = item.parsedDate.toLocaleDateString('en-IN', { year: 'numeric', month: 'short' });
-                if (!monthlyData[monthYear]) {
-                    monthlyData[monthYear] = 0;
-                }
-                monthlyData[monthYear] += item.finalAmount;
-            });
-
-            // Sort by date
-            const sortedEntries = Object.entries(monthlyData).sort((a, b) => new Date(a[0]) - new Date(b[0]));
-            const labels = sortedEntries.map(entry => entry[0]);
-            const data = sortedEntries.map(entry => entry[1]);
-
-            charts.monthly = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Monthly Expenses',
-                        data: data,
-                        borderColor: colorPalettes.monthly,
-                        backgroundColor: colorPalettes.monthly + '20',
-                        borderWidth: 3,
-                        fill: true,
-                        tension: 0.4,
-                        pointBackgroundColor: colorPalettes.monthly,
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 2,
-                        pointRadius: 6,
-                        pointHoverRadius: 8
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.9)',
-                            callbacks: {
-                                label: function(context) {
-                                    return `Expenses: ₹${context.parsed.y.toLocaleString('en-IN')}`;
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: function(value) {
-                                    return '₹' + value.toLocaleString('en-IN');
-                                }
-                            }
-                        }
-                    },
-                    animation: {
-                        duration: 2000,
-                        easing: 'easeInOutQuart'
-                    }
-                }
-            });
-        }
-
-        function createTopExpensesChart() {
-            const ctx = document.getElementById('topExpensesChart').getContext('2d');
-            
-            if (charts.topExpenses) {
-                charts.topExpenses.destroy();
-            }
-
-            // Get top 5 expenses
-            const topExpenses = [...globalData]
-                .sort((a, b) => b.finalAmount - a.finalAmount)
-                .slice(0, 5);
-
-            const labels = topExpenses.map(item => item.description.substring(0, 30) + '...');
-            const data = topExpenses.map(item => item.finalAmount);
-
-            charts.topExpenses = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Amount',
-                        data: data,
-                        backgroundColor: colorPalettes.expenses.slice(0, data.length),
-                        borderRadius: 8,
-                        borderSkipped: false
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    indexAxis: 'y',
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.9)',
-                            callbacks: {
-                                title: function(context) {
-                                    const index = context[0].dataIndex;
-                                    return topExpenses[index].description;
-                                },
-                                label: function(context) {
-                                    return `Amount: ₹${context.parsed.x.toLocaleString('en-IN')}`;
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: function(value) {
-                                    return '₹' + value.toLocaleString('en-IN');
-                                }
-                            }
-                        }
-                    },
-                    animation: {
-                        duration: 2000,
-                        easing: 'easeInOutQuart'
-                    }
-                }
-            });
-        }
-
-        function populateYearFilter() {
-            const yearFilter = document.getElementById('yearFilter');
-            const years = [...new Set(globalData.map(item => item.parsedDate.getFullYear()))].sort().reverse();
-            
-            yearFilter.innerHTML = '<option value="">All Years</option>';
-            years.forEach(year => {
-                yearFilter.innerHTML += `<option value="${year}">${year}</option>`;
-            });
-        }
-
-        function updateMonthlyChart() {
-            const selectedYear = document.getElementById('yearFilter').value;
-            let filteredData = globalData;
-            
-            if (selectedYear) {
-                filteredData = globalData.filter(item => item.parsedDate.getFullYear() == selectedYear);
-            }
-            
-            // Recreate monthly chart with filtered data
-            const monthlyData = {};
-            filteredData.forEach(item => {
-                const monthYear = item.parsedDate.toLocaleDateString('en-IN', { year: 'numeric', month: 'short' });
-                if (!monthlyData[monthYear]) {
-                    monthlyData[monthYear] = 0;
-                }
-                monthlyData[monthYear] += item.finalAmount;
-            });
-
-            const sortedEntries = Object.entries(monthlyData).sort((a, b) => new Date(a[0]) - new Date(b[0]));
-            const labels = sortedEntries.map(entry => entry[0]);
-            const data = sortedEntries.map(entry => entry[1]);
-
-            charts.monthly.data.labels = labels;
-            charts.monthly.data.datasets[0].data = data;
-            charts.monthly.update();
-        }
-
-        function updateLastUpdated() {
-            const now = new Date();
-            document.getElementById('last-updated').textContent = 
-                `Last updated: ${now.toLocaleDateString('en-IN')} at ${now.toLocaleTimeString('en-IN')}`;
-        }
-
-        // Auto-refresh animation
-        function animateRefresh() {
-            const icon = document.getElementById('refresh-icon');
-            icon.style.transform = 'rotate(360deg)';
-            icon.style.transition = 'transform 0.5s ease';
-            setTimeout(() => {
-                icon.style.transform = 'rotate(0deg)';
-            }, 500);
-        }
-
-        // Add refresh animation to load data
-        const originalLoadData = loadData;
-        loadData = function() {
-            animateRefresh();
-            return originalLoadData();
-        };
+      // Add refresh animation to load data
+      const originalLoadData = loadData;
+      loadData = function () {
+        animateRefresh();
+        return originalLoadData();
+      };
     </script>
-</body>
+  </body>
 </html>
