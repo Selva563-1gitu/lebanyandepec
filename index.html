@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Education Expense Analytics Dashboard</title>
+    <title>Multi-Section Analytics Dashboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
       * {
@@ -48,11 +48,32 @@
         opacity: 0.9;
       }
 
-      .refresh-btn {
+      .header-controls {
         position: absolute;
         right: 30px;
         top: 50%;
         transform: translateY(-50%);
+        display: flex;
+        gap: 15px;
+        align-items: center;
+      }
+
+      .section-filter {
+        background: rgba(255, 255, 255, 0.2);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        color: white;
+        padding: 10px 15px;
+        border-radius: 25px;
+        font-size: 0.9em;
+        font-weight: 500;
+      }
+
+      .section-filter option {
+        background: #4f46e5;
+        color: white;
+      }
+
+      .refresh-btn {
         background: rgba(255, 255, 255, 0.2);
         border: 2px solid rgba(255, 255, 255, 0.3);
         color: white;
@@ -65,7 +86,7 @@
 
       .refresh-btn:hover {
         background: rgba(255, 255, 255, 0.3);
-        transform: translateY(-50%) scale(1.05);
+        transform: scale(1.05);
       }
 
       .config-notice {
@@ -125,6 +146,69 @@
       }
       .negative {
         color: #dc2626;
+      }
+
+      .section-overview {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        padding: 30px;
+        background: #f1f5f9;
+      }
+
+      .section-card {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        border-left: 5px solid;
+        transition: transform 0.3s ease;
+      }
+
+      .section-card:hover {
+        transform: translateY(-3px);
+      }
+
+      .section-card.education {
+        border-left-color: #4f46e5;
+      }
+
+      .section-card.women-empowerment {
+        border-left-color: #ec4899;
+      }
+
+      .section-card.welfare {
+        border-left-color: #10b981;
+      }
+
+      .section-card h3 {
+        color: #1e293b;
+        font-size: 1.3em;
+        margin-bottom: 15px;
+      }
+
+      .section-stats {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 15px;
+      }
+
+      .section-stat {
+        text-align: center;
+      }
+
+      .section-stat .label {
+        font-size: 0.8em;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .section-stat .value {
+        font-size: 1.4em;
+        font-weight: 700;
+        color: #1e293b;
+        margin-top: 5px;
       }
 
       .charts-grid {
@@ -249,10 +333,15 @@
           font-size: 2em;
         }
 
-        .refresh-btn {
+        .header-controls {
           position: static;
           transform: none;
           margin-top: 15px;
+          justify-content: center;
+        }
+
+        .section-overview {
+          grid-template-columns: 1fr;
         }
       }
     </style>
@@ -260,11 +349,19 @@
   <body>
     <div class="dashboard-container">
       <div class="header">
-        <h1>Education Expense Analytics</h1>
-        <p>Real-time insights from Google Sheets data</p>
-        <button class="refresh-btn" onclick="loadData()">
-          <span id="refresh-icon">🔄</span> Refresh Data
-        </button>
+        <h1>Multi-Section Analytics</h1>
+        <p>Education, Women Empowerment & Welfare Insights</p>
+        <div class="header-controls">
+          <select class="section-filter" id="sectionFilter" onchange="updateDashboard()">
+            <option value="">All Sections</option>
+            <option value="Education">Education</option>
+            <option value="Women Empowerment">Women Empowerment</option>
+            <option value="Welfare">Welfare</option>
+          </select>
+          <button class="refresh-btn" onclick="loadData()">
+            <span id="refresh-icon">🔄</span> Refresh
+          </button>
+        </div>
       </div>
 
       <div class="config-notice" id="config-notice">
@@ -290,19 +387,37 @@
           <div class="change" id="avg-change">Loading...</div>
         </div>
         <div class="summary-card">
-          <h3>Recent Activity</h3>
-          <div class="value" id="recent-activity">0</div>
-          <div class="change">Last 30 days</div>
+          <h3>Active Sections</h3>
+          <div class="value" id="active-sections">0</div>
+          <div class="change">Sections with data</div>
         </div>
       </div>
 
+      <div class="section-overview" id="section-overview">
+        <!-- Section cards will be populated dynamically -->
+      </div>
+
       <div class="charts-grid">
+        <div class="chart-container" id="all-section">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">Expenses by Section</div>
+              <div class="chart-subtitle">
+                Distribution across different sections
+              </div>
+            </div>
+          </div>
+          <div class="chart-canvas">
+            <canvas id="sectionChart"></canvas>
+          </div>
+        </div>
+
         <div class="chart-container">
           <div class="chart-header">
             <div>
               <div class="chart-title">Expenses by Category</div>
               <div class="chart-subtitle">
-                Distribution of education expenses
+                Category-wise expense distribution
               </div>
             </div>
           </div>
@@ -363,27 +478,26 @@
     <script>
       // Configuration - Replace with your Google Apps Script Web App URL
       const SCRIPT_URL =
-        "https://script.google.com/macros/s/AKfycbwdWztMbamWp5J6ZyCScowe_JyRvYlj3m76Mp-O1U5c9AN2DryoR1G-6HPu3F7d-T8u/exec";
+        "https://script.google.com/macros/s/AKfycbygZujuh16ayy0JzbgK92de2JJh7liPeoN07UtHvOSMwccgFPbQTlShFuUsT_-4Nshl/exec";
 
       // Set to true to use live Google Sheets data, false to use sample data
       const USE_LIVE_DATA = true;
 
-      let globalData = [];
+      let globalData = {};
+      let globalSummary = {};
+      let filteredData = [];
       let charts = {};
 
       // Color palettes for charts
       const colorPalettes = {
+        sections: {
+          'Education': '#4f46e5',
+          'Women Empowerment': '#ec4899',
+          'Welfare': '#10b981'
+        },
         category: [
-          "#4f46e5",
-          "#7c3aed",
-          "#ec4899",
-          "#ef4444",
-          "#f59e0b",
-          "#10b981",
-          "#06b6d4",
-          "#8b5cf6",
-          "#f97316",
-          "#84cc16",
+          "#4f46e5", "#7c3aed", "#ec4899", "#ef4444", "#f59e0b", "#10b981",
+          "#06b6d4", "#8b5cf6", "#f97316", "#84cc16", "#06b6d4", "#f59e0b"
         ],
         payment: ["#3b82f6", "#1d4ed8", "#1e40af", "#1e3a8a", "#312e81"],
         monthly: "#6366f1",
@@ -430,7 +544,6 @@
             }
 
             result = await response.json();
-            // console.log(result);
             if (result.status === "error") {
               throw new Error(result.error);
             }
@@ -438,17 +551,20 @@
             // Use sample data matching your Apps Script structure
             result = generateSampleData();
           }
-          globalData = result.data || [];
 
-          // 🔑 Fix: ensure parsedDate is a real Date object
-          globalData.forEach((item) => {
-            if (item.parsedDate) {
-              item.parsedDate = new Date(item.parsedDate);
-            }
+          globalData = result.data || {};
+          globalSummary = result.summary || {};
+
+          // Process and fix dates
+          Object.keys(globalData).forEach(section => {
+            globalData[section].forEach(item => {
+              if (item.parsedDate) {
+                item.parsedDate = new Date(item.parsedDate);
+              }
+            });
           });
 
-          updateSummaryCards(result);
-          createAllCharts();
+          updateDashboard();
           updateLastUpdated(result.lastUpdated);
         } catch (error) {
           showError("Failed to load data: " + error.message);
@@ -458,94 +574,134 @@
 
       // Generate sample data matching your Apps Script structure
       function generateSampleData() {
-        const sampleData = [
+        const educationData = [
           {
-            id: 1,
+            id: "education_1",
+            section: "Education",
             date: "Feb 2025",
             description: "SEED Contribution 11 students",
             amount: 141500,
             finalAmount: 141500,
             type: "NEFT Transaction",
             category: "Educational Support",
-            remarks: "",
-            fundTransfer: "NEFT",
-            contributions: "",
             parsedDate: new Date("2025-02-15"),
           },
           {
-            id: 2,
+            id: "education_2",
+            section: "Education",
             date: "Feb 2025",
             description: "Scholarships for 52 students",
             amount: 528000,
             finalAmount: 528000,
             type: "NEFT Transaction",
             category: "Scholarships",
-            remarks: "",
-            fundTransfer: "NEFT",
-            contributions: "",
             parsedDate: new Date("2025-02-20"),
           },
           {
-            id: 3,
+            id: "education_3",
+            section: "Education",
             date: "Dec 2024",
             description: "Semester Fees for two students",
             amount: 27000,
             finalAmount: 27000,
             type: "NEFT Transaction",
             category: "Institution Fees",
-            remarks: "",
-            fundTransfer: "NEFT",
-            contributions: "",
             parsedDate: new Date("2024-12-15"),
-          },
-          {
-            id: 4,
-            date: "Feb 2017",
-            description: "Scholarship for 20 Students",
-            amount: 15970,
-            finalAmount: 15970,
-            type: "NEFT Transaction",
-            category: "Scholarships",
-            remarks: "",
-            fundTransfer: "NEFT",
-            contributions: "",
-            parsedDate: new Date("2017-02-15"),
-          },
-          {
-            id: 5,
-            date: "Jan 2017",
-            description:
-              "CAP conducted by Prof. Kasilingam on Financial Intelligence for PEC students",
-            amount: 2000,
-            finalAmount: 2000,
-            type: "Cash",
-            category: "Special Programs",
-            remarks: "",
-            fundTransfer: "Cash",
-            contributions: "",
-            parsedDate: new Date("2017-01-31"),
-          },
-          {
-            id: 6,
-            date: "Apr 2024",
-            description: "Womens day Celebration",
-            amount: 5000,
-            finalAmount: 5000,
-            type: "NEFT Transaction",
-            category: "Events & Programs",
-            remarks: "",
-            fundTransfer: "NEFT",
-            contributions: "",
-            parsedDate: new Date("2024-04-11"),
-          },
+          }
         ];
 
+        const womenEmpowermentData = [
+          {
+            id: "women_empowerment_1",
+            section: "Women Empowerment",
+            date: "Jan 2025",
+            description: "Skill Development Workshop",
+            amount: 25000,
+            finalAmount: 25000,
+            type: "NEFT Transaction",
+            category: "Skill Development",
+            parsedDate: new Date("2025-01-15"),
+          },
+          {
+            id: "women_empowerment_2",
+            section: "Women Empowerment",
+            date: "Dec 2024",
+            description: "Microfinance Support",
+            amount: 50000,
+            finalAmount: 50000,
+            type: "NEFT Transaction",
+            category: "Financial Assistance",
+            parsedDate: new Date("2024-12-10"),
+          }
+        ];
+
+        const welfareData = [
+          {
+            id: "welfare_1",
+            section: "Welfare",
+            date: "Feb 2025",
+            description: "Food Distribution Program",
+            amount: 35000,
+            finalAmount: 35000,
+            type: "Cash",
+            category: "Food & Nutrition",
+            parsedDate: new Date("2025-02-05"),
+          },
+          {
+            id: "welfare_2",
+            section: "Welfare",
+            date: "Jan 2025",
+            description: "Medical Camp",
+            amount: 40000,
+            finalAmount: 40000,
+            type: "NEFT Transaction",
+            category: "Medical Care",
+            parsedDate: new Date("2025-01-20"),
+          }
+        ];
+
+        const data = {
+          "Education": educationData,
+          "Women Empowerment": womenEmpowermentData,
+          "Welfare": welfareData
+        };
+
+        const summary = {};
+        Object.keys(data).forEach(section => {
+          summary[section] = {
+            totalRecords: data[section].length,
+            totalAmount: data[section].reduce((sum, item) => sum + item.finalAmount, 0),
+            categories: [...new Set(data[section].map(item => item.category))]
+          };
+        });
+
         return {
-          data: sampleData,
-          totalRecords: sampleData.length,
+          data: data,
+          summary: summary,
+          totalRecords: Object.values(data).reduce((sum, arr) => sum + arr.length, 0),
           lastUpdated: new Date().toISOString(),
           status: "success",
         };
+      }
+
+      function updateDashboard() {
+        updateFilteredData();
+        updateSummaryCards();
+        updateSectionOverview();
+        createAllCharts();
+      }
+
+      function updateFilteredData() {
+        const selectedSection = document.getElementById("sectionFilter").value;
+        
+        if (selectedSection) {
+          filteredData = globalData[selectedSection] || [];
+        } else {
+          filteredData = [];
+          Object.values(globalData).forEach(sectionData => {
+            filteredData.push(...sectionData);
+          });
+        }
       }
 
       function showLoading() {
@@ -560,52 +716,141 @@
         container.innerHTML = `<div class="error">${message}</div>`;
       }
 
-      function updateSummaryCards(data) {
-        // Calculate totals using finalAmount as per your script
-        const totalAmount = globalData.reduce(
-          (sum, item) => sum + (item.finalAmount || 0),
-          0
-        );
-        const avgAmount = totalAmount / globalData.length || 0;
+      function updateSummaryCards() {
+        const totalAmount = filteredData.reduce((sum, item) => sum + (item.finalAmount || 0), 0);
+        const avgAmount = filteredData.length > 0 ? totalAmount / filteredData.length : 0;
+        const activeSections = Object.keys(globalData).filter(section => 
+          globalData[section] && globalData[section].length > 0
+        ).length;
 
-        // Calculate recent activity (last 30 days)
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        const recentActivity = globalData.filter((item) => {
-          const itemDate = new Date(item.parsedDate);
-          return itemDate >= thirtyDaysAgo;
-        }).length;
-
-        document.getElementById(
-          "total-amount"
-        ).textContent = `₹${totalAmount.toLocaleString("en-IN")}`;
-        document.getElementById("total-transactions").textContent =
-          globalData.length;
-        document.getElementById("avg-amount").textContent = `₹${Math.round(
-          avgAmount
-        ).toLocaleString("en-IN")}`;
-        document.getElementById("recent-activity").textContent = recentActivity;
+        document.getElementById("total-amount").textContent = `₹${totalAmount.toLocaleString("en-IN")}`;
+        document.getElementById("total-transactions").textContent = filteredData.length;
+        document.getElementById("avg-amount").textContent = `₹${Math.round(avgAmount).toLocaleString("en-IN")}`;
+        document.getElementById("active-sections").textContent = activeSections;
 
         // Update change indicators
-        document.getElementById(
-          "total-change"
-        ).innerHTML = `<span class="positive">Total records: ${
-          data.totalRecords || globalData.length
-        }</span>`;
-        document.getElementById(
-          "transaction-change"
-        ).innerHTML = `<span class="positive">Active records with amounts > 0</span>`;
-        document.getElementById(
-          "avg-change"
-        ).innerHTML = `<span class="positive">Per transaction average</span>`;
+        const selectedSection = document.getElementById("sectionFilter").value;
+        const sectionText = selectedSection ? `${selectedSection} section` : "all sections";
+        
+        document.getElementById("total-change").innerHTML = `<span class="positive">From ${sectionText}</span>`;
+        document.getElementById("transaction-change").innerHTML = `<span class="positive">Active records</span>`;
+        document.getElementById("avg-change").innerHTML = `<span class="positive">Per transaction</span>`;
+      }
+
+      function updateSectionOverview() {
+        const container = document.getElementById("section-overview");
+        const selectedSection = document.getElementById("sectionFilter").value;
+        
+        if (selectedSection) {
+          container.style.display = 'none';
+          return;
+        }
+        
+        container.style.display = 'grid';
+        container.innerHTML = '';
+
+        Object.keys(globalSummary).forEach(section => {
+          const summary = globalSummary[section];
+          const sectionClass = section.toLowerCase().replace(/\s+/g, '-');
+          
+          const card = document.createElement('div');
+          card.className = `section-card ${sectionClass}`;
+          card.innerHTML = `
+            <h3>${section}</h3>
+            <div class="section-stats">
+              <div class="section-stat">
+                <div class="label">Records</div>
+                <div class="value">${summary.totalRecords}</div>
+              </div>
+              <div class="section-stat">
+                <div class="label">Amount</div>
+                <div class="value">₹${(summary.totalAmount / 1000).toFixed(0)}k</div>
+              </div>
+              <div class="section-stat">
+                <div class="label">Categories</div>
+                <div class="value">${summary.categories.length}</div>
+              </div>
+            </div>
+          `;
+          container.appendChild(card);
+        });
       }
 
       function createAllCharts() {
+        createSectionChart();
         createCategoryChart();
         createPaymentChart();
         createMonthlyChart();
         createTopExpensesChart();
         populateYearFilter();
+      }
+
+      function createSectionChart() {
+        const ctx = document.getElementById("sectionChart").getContext("2d");
+
+        if (charts.section) {
+          charts.section.destroy();
+        }
+
+        // If a specific section is selected, skip this chart
+        const selectedSection = document.getElementById("sectionFilter").value;
+        if (selectedSection) {
+          ctx.canvas.style.display = 'none';
+          return;
+        }
+        
+        ctx.canvas.style.display = 'block';
+
+        const sectionData = {};
+        Object.keys(globalData).forEach(section => {
+          sectionData[section] = globalData[section].reduce((sum, item) => sum + (item.finalAmount || 0), 0);
+        });
+
+        const labels = Object.keys(sectionData);
+        const data = Object.values(sectionData);
+        const colors = labels.map(label => colorPalettes.sections[label] || '#64748b');
+
+        charts.section = new Chart(ctx, {
+          type: "doughnut",
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                data: data,
+                backgroundColor: colors,
+                borderWidth: 3,
+                borderColor: "#fff",
+                hoverBorderWidth: 5,
+                hoverBorderColor: "#fff",
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: "bottom",
+                labels: {
+                  padding: 20,
+                  usePointStyle: true,
+                  font: { size: 12 },
+                },
+              },
+              tooltip: {
+                backgroundColor: "rgba(0, 0, 0, 0.9)",
+                callbacks: {
+                  label: function (context) {
+                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                    const percentage = ((context.parsed / total) * 100).toFixed(1);
+                    return `${context.label}: ₹${context.parsed.toLocaleString("en-IN")} (${percentage}%)`;
+                  },
+                },
+              },
+            },
+            animation: { animateRotate: true, duration: 2000 },
+          },
+        });
       }
 
       function createCategoryChart() {
@@ -617,7 +862,7 @@
 
         // Group data by category using finalAmount
         const categoryData = {};
-        globalData.forEach((item) => {
+        filteredData.forEach((item) => {
           const category = item.category || "Other";
           if (!categoryData[category]) {
             categoryData[category] = 0;
@@ -652,9 +897,7 @@
                 labels: {
                   padding: 20,
                   usePointStyle: true,
-                  font: {
-                    size: 12,
-                  },
+                  font: { size: 12 },
                 },
               },
               tooltip: {
@@ -666,24 +909,14 @@
                 cornerRadius: 8,
                 callbacks: {
                   label: function (context) {
-                    const total = context.dataset.data.reduce(
-                      (a, b) => a + b,
-                      0
-                    );
-                    const percentage = ((context.parsed / total) * 100).toFixed(
-                      1
-                    );
-                    return `${context.label}: ₹${context.parsed.toLocaleString(
-                      "en-IN"
-                    )} (${percentage}%)`;
+                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                    const percentage = ((context.parsed / total) * 100).toFixed(1);
+                    return `${context.label}: ₹${context.parsed.toLocaleString("en-IN")} (${percentage}%)`;
                   },
                 },
               },
             },
-            animation: {
-              animateRotate: true,
-              duration: 2000,
-            },
+            animation: { animateRotate: true, duration: 2000 },
           },
         });
       }
@@ -697,7 +930,7 @@
 
         // Group data by payment type using finalAmount
         const paymentData = {};
-        globalData.forEach((item) => {
+        filteredData.forEach((item) => {
           const type = item.type || "Other";
           if (!paymentData[type]) {
             paymentData[type] = 0;
@@ -737,23 +970,14 @@
                 backgroundColor: "rgba(0, 0, 0, 0.9)",
                 callbacks: {
                   label: function (context) {
-                    const total = context.dataset.data.reduce(
-                      (a, b) => a + b,
-                      0
-                    );
-                    const percentage = ((context.parsed / total) * 100).toFixed(
-                      1
-                    );
-                    return `${context.label}: ₹${context.parsed.toLocaleString(
-                      "en-IN"
-                    )} (${percentage}%)`;
+                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                    const percentage = ((context.parsed / total) * 100).toFixed(1);
+                    return `${context.label}: ₹${context.parsed.toLocaleString("en-IN")} (${percentage}%)`;
                   },
                 },
               },
             },
-            animation: {
-              duration: 2000,
-            },
+            animation: { duration: 2000 },
           },
         });
       }
@@ -767,7 +991,7 @@
 
         // Group data by month using parsedDate and finalAmount
         const monthlyData = {};
-        globalData.forEach((item) => {
+        filteredData.forEach((item) => {
           if (item.parsedDate) {
             const monthYear = item.parsedDate.toLocaleDateString("en-IN", {
               year: "numeric",
@@ -812,16 +1036,12 @@
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-              legend: {
-                display: false,
-              },
+              legend: { display: false },
               tooltip: {
                 backgroundColor: "rgba(0, 0, 0, 0.9)",
                 callbacks: {
                   label: function (context) {
-                    return `Expenses: ₹${context.parsed.y.toLocaleString(
-                      "en-IN"
-                    )}`;
+                    return `Expenses: ₹${context.parsed.y.toLocaleString("en-IN")}`;
                   },
                 },
               },
@@ -836,25 +1056,20 @@
                 },
               },
             },
-            animation: {
-              duration: 2000,
-              easing: "easeInOutQuart",
-            },
+            animation: { duration: 2000, easing: "easeInOutQuart" },
           },
         });
       }
 
       function createTopExpensesChart() {
-        const ctx = document
-          .getElementById("topExpensesChart")
-          .getContext("2d");
+        const ctx = document.getElementById("topExpensesChart").getContext("2d");
 
         if (charts.topExpenses) {
           charts.topExpenses.destroy();
         }
 
         // Get top 5 expenses by finalAmount
-        const topExpenses = [...globalData]
+        const topExpenses = [...filteredData]
           .sort((a, b) => (b.finalAmount || 0) - (a.finalAmount || 0))
           .slice(0, 5);
 
@@ -883,9 +1098,7 @@
             maintainAspectRatio: false,
             indexAxis: "y",
             plugins: {
-              legend: {
-                display: false,
-              },
+              legend: { display: false },
               tooltip: {
                 backgroundColor: "rgba(0, 0, 0, 0.9)",
                 callbacks: {
@@ -894,9 +1107,13 @@
                     return topExpenses[index].description || "No description";
                   },
                   label: function (context) {
-                    return `Amount: ₹${context.parsed.x.toLocaleString(
-                      "en-IN"
-                    )}`;
+                    const index = context.dataIndex;
+                    const item = topExpenses[index];
+                    return [
+                      `Amount: ₹${context.parsed.x.toLocaleString("en-IN")}`,
+                      `Section: ${item.section || 'N/A'}`,
+                      `Category: ${item.category || 'N/A'}`
+                    ];
                   },
                 },
               },
@@ -911,10 +1128,7 @@
                 },
               },
             },
-            animation: {
-              duration: 2000,
-              easing: "easeInOutQuart",
-            },
+            animation: { duration: 2000, easing: "easeInOutQuart" },
           },
         });
       }
@@ -923,7 +1137,7 @@
         const yearFilter = document.getElementById("yearFilter");
         const years = [
           ...new Set(
-            globalData
+            filteredData
               .filter((item) => item.parsedDate)
               .map((item) => item.parsedDate.getFullYear())
           ),
@@ -939,10 +1153,10 @@
 
       function updateMonthlyChart() {
         const selectedYear = document.getElementById("yearFilter").value;
-        let filteredData = globalData;
+        let yearFilteredData = filteredData;
 
         if (selectedYear) {
-          filteredData = globalData.filter(
+          yearFilteredData = filteredData.filter(
             (item) =>
               item.parsedDate && item.parsedDate.getFullYear() == selectedYear
           );
@@ -950,7 +1164,7 @@
 
         // Recreate monthly chart with filtered data
         const monthlyData = {};
-        filteredData.forEach((item) => {
+        yearFilteredData.forEach((item) => {
           if (item.parsedDate) {
             const monthYear = item.parsedDate.toLocaleDateString("en-IN", {
               year: "numeric",
