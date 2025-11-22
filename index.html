@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Multi-Section Analytics Dashboard</title>
+    <title>Expenses Analytics</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
       * {
@@ -181,6 +181,10 @@
         border-left-color: #10b981;
       }
 
+      .section-card.environment {
+        border-left-color: #06b6d4;
+      }
+
       .section-card h3 {
         color: #1e293b;
         font-size: 1.3em;
@@ -349,14 +353,15 @@
   <body>
     <div class="dashboard-container">
       <div class="header">
-        <h1>Multi-Section Analytics</h1>
-        <p>Education, Women Empowerment & Welfare Insights</p>
+        <h1>Expenses Analytics</h1>
+        <p>Education, Women Empowerment, Welfare & Environment Insights</p>
         <div class="header-controls">
-          <select class="section-filter" id="sectionFilter" onchange="updateDashboard()">
+          <select
+            class="section-filter"
+            id="sectionFilter"
+            onchange="updateDashboard()"
+          >
             <option value="">All Sections</option>
-            <option value="Education">Education</option>
-            <option value="Women Empowerment">Women Empowerment</option>
-            <option value="Welfare">Welfare</option>
           </select>
           <button class="refresh-btn" onclick="loadData()">
             <span id="refresh-icon">🔄</span> Refresh
@@ -368,6 +373,35 @@
         <strong>Setup Required:</strong> Replace
         YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE with your actual Apps Script
         Web App URL and set USE_LIVE_DATA to true.
+      </div>
+
+      <div
+        class="config-notice"
+        id="section-notice"
+        style="
+          display: none;
+          background: #dbeafe;
+          color: #1e40af;
+          border-left-color: #3b82f6;
+        "
+      >
+        <strong>Note:</strong> Make sure your Google Apps Script is fetching
+        data for all sections defined in USER_SECTIONS, including Environment.
+      </div>
+
+      <div
+        class="config-notice"
+        id="scholarship-notice"
+        style="
+          display: none;
+          background: #fef3c7;
+          color: #92400e;
+          border-left-color: #f59e0b;
+        "
+      >
+        <strong>Scholarship Data:</strong> Add your scholarship Google Sheet
+        Apps Script URL to SCHOLARSHIP_SCRIPT_URL to enable the Support Type
+        Distribution chart.
       </div>
 
       <div class="summary-cards">
@@ -415,6 +449,29 @@
         <div class="chart-container">
           <div class="chart-header">
             <div>
+              <div class="chart-title">Support Type Distribution</div>
+              <div class="chart-subtitle">
+                Scholarship support categories by amount
+              </div>
+            </div>
+            <div class="filter-controls">
+              <select
+                class="filter-select"
+                id="supportYearFilter"
+                onchange="updateSupportTypeChart()"
+              >
+                <option value="">All Years</option>
+              </select>
+            </div>
+          </div>
+          <div class="chart-canvas">
+            <canvas id="supportTypeChart"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-container">
+          <div class="chart-header">
+            <div>
               <div class="chart-title">Expenses by Category</div>
               <div class="chart-subtitle">
                 Category-wise expense distribution
@@ -425,6 +482,8 @@
             <canvas id="categoryChart"></canvas>
           </div>
         </div>
+
+        
 
         <div class="chart-container">
           <div class="chart-header">
@@ -478,50 +537,346 @@
     <script>
       // Configuration - Replace with your Google Apps Script Web App URL
       const SCRIPT_URL =
-        "https://script.google.com/macros/s/AKfycbygZujuh16ayy0JzbgK92de2JJh7liPeoN07UtHvOSMwccgFPbQTlShFuUsT_-4Nshl/exec";
+        "https://script.google.com/macros/s/AKfycby4Z64vJSpwYbCRLcKdIcJiqipeBVP69F-j9ZW83xyWtXUr5xPmD9G0kCdVSvYQv8zB/exec";
+
+      // SCHOLARSHIP SHEET URL - Add your scholarship sheet Apps Script URL here
+      const SCHOLARSHIP_SCRIPT_URL =
+        "https://script.google.com/macros/s/AKfycbzCVufo0qzebXxsKn0QStfQ6URp2RymtDudZsSHeGH-VJr6qvaUs-3eTGp8EUcsY3CY/exec";
 
       // Set to true to use live Google Sheets data, false to use sample data
       const USE_LIVE_DATA = true;
 
+      // USER-DEFINED SECTIONS - Add or modify sections here
+      const USER_SECTIONS = [
+        { name: "Education", color: "#4f46e5" },
+        { name: "Women Empowerment", color: "#ec4899" },
+        { name: "Welfare", color: "#10b981" },
+        { name: "Environment", color: "#06b6d4" },
+      ];
+
       let globalData = {};
       let globalSummary = {};
       let filteredData = [];
+      let scholarshipData = [];
       let charts = {};
 
       // Color palettes for charts
       const colorPalettes = {
-        sections: {
-          'Education': '#4f46e5',
-          'Women Empowerment': '#ec4899',
-          'Welfare': '#10b981'
-        },
+        sections: USER_SECTIONS.reduce((acc, section) => {
+          acc[section.name] = section.color;
+          return acc;
+        }, {}),
         category: [
-          "#4f46e5", "#7c3aed", "#ec4899", "#ef4444", "#f59e0b", "#10b981",
-          "#06b6d4", "#8b5cf6", "#f97316", "#84cc16", "#06b6d4", "#f59e0b"
+          "#4f46e5",
+          "#7c3aed",
+          "#ec4899",
+          "#ef4444",
+          "#f59e0b",
+          "#10b981",
+          "#06b6d4",
+          "#8b5cf6",
+          "#f97316",
+          "#84cc16",
+          "#06b6d4",
+          "#f59e0b",
         ],
-        payment: ["#3b82f6", "#1d4ed8", "#1e40af", "#1e3a8a", "#312e81"],
+        payment: ["#4f46e5",
+          "#7c3aed",
+          "#ec4899",
+          "#ef4444",
+          "#f59e0b",
+          "#10b981",
+          "#06b6d4",
+          "#8b5cf6",
+          "#f97316",
+          "#84cc16",
+          "#06b6d4",
+          "#f59e0b"],
         monthly: "#6366f1",
         expenses: ["#ef4444", "#dc2626", "#b91c1c", "#991b1b", "#7f1d1d"],
+        
+        supportTypes: ["#4f46e5",
+          "#7c3aed",
+          "#ec4899",
+          "#ef4444",
+          "#f59e0b",
+          "#10b981",
+          "#06b6d4",
+          "#8b5cf6",
+          "#f97316",
+          "#84cc16",
+          "#06b6d4",
+          "#f59e0b"],
       };
 
       // Initialize dashboard
       document.addEventListener("DOMContentLoaded", function () {
         updateConfigNotice();
+        populateSectionFilter();
         loadData();
 
         // Set up auto-refresh every 5 minutes
         setInterval(loadData, 5 * 60 * 1000);
       });
 
+      function createTopExpensesChart() {
+        const ctx = document
+          .getElementById("topExpensesChart")
+          .getContext("2d");
+
+        if (charts.topExpenses) {
+          charts.topExpenses.destroy();
+        }
+
+        // Get top 5 expenses by finalAmount
+        const topExpenses = [...filteredData]
+          .sort((a, b) => (b.finalAmount || 0) - (a.finalAmount || 0))
+          .slice(0, 5);
+
+        const labels = topExpenses.map((item) => {
+          const desc = item.description || "No description";
+          return desc.length > 25 ? desc.substring(0, 25) + "..." : desc;
+        });
+        const data = topExpenses.map((item) => item.finalAmount || 0);
+
+        charts.topExpenses = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: "Amount",
+                data: data,
+                backgroundColor: colorPalettes.expenses.slice(0, data.length),
+                borderRadius: 8,
+                borderSkipped: false,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: "y",
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: "rgba(0, 0, 0, 0.9)",
+                callbacks: {
+                  title: function (context) {
+                    const index = context[0].dataIndex;
+                    return topExpenses[index].description || "No description";
+                  },
+                  label: function (context) {
+                    const index = context.dataIndex;
+                    const item = topExpenses[index];
+                    return [
+                      `Amount: ₹${context.parsed.x.toLocaleString("en-IN")}`,
+                      `Section: ${item.section || "N/A"}`,
+                      `Category: ${item.category || "N/A"}`,
+                    ];
+                  },
+                },
+              },
+            },
+            scales: {
+              x: {
+                beginAtZero: true,
+                ticks: {
+                  callback: function (value) {
+                    return "₹" + value.toLocaleString("en-IN");
+                  },
+                },
+              },
+            },
+            animation: { duration: 2000, easing: "easeInOutQuart" },
+          },
+        });
+      }
+
+      function createSupportTypeChart() {
+        const ctx = document
+          .getElementById("supportTypeChart")
+          .getContext("2d");
+        const chartContainer = ctx.canvas.closest(".chart-container");
+
+        if (charts.supportType) {
+          charts.supportType.destroy();
+        }
+
+        // Only show this chart when Education section is selected
+        const selectedSection = document.getElementById("sectionFilter").value;
+        if (selectedSection !== "Education") {
+          chartContainer.style.display = "none";
+          return;
+        }
+
+        chartContainer.style.display = "block";
+
+        // Check if scholarship data is available
+        if (!scholarshipData || scholarshipData.length === 0) {
+          // Show a message if no data
+          ctx.canvas.parentElement.innerHTML = `
+            <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #64748b;">
+              <p>No scholarship data available. Please configure SCHOLARSHIP_SCRIPT_URL.</p>
+            </div>
+          `;
+          return;
+        }
+
+        // Group scholarship data by support type
+        const supportTypeData = {};
+        scholarshipData.forEach((item) => {
+          const supportType = categorizeSupportType(item);
+          if (!supportTypeData[supportType]) {
+            supportTypeData[supportType] = 0;
+          }
+          // supportTypeData[supportType] += item.amount || 0;
+          supportTypeData[supportType] += 1 || 0;
+        });
+
+        const labels = Object.keys(supportTypeData);
+        const data = Object.values(supportTypeData);
+
+        charts.supportType = new Chart(ctx, {
+          type: "doughnut",
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                data: data,
+                backgroundColor: colorPalettes.supportTypes.slice(
+                  0,
+                  labels.length
+                ),
+                borderWidth: 3,
+                borderColor: "#fff",
+                hoverBorderWidth: 5,
+                hoverBorderColor: "#fff",
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: "bottom",
+                labels: {
+                  padding: 20,
+                  usePointStyle: true,
+                  font: { size: 12 },
+                },
+              },
+              tooltip: {
+                backgroundColor: "rgba(0, 0, 0, 0.9)",
+                titleColor: "#fff",
+                bodyColor: "#fff",
+                borderColor: "#10b981",
+                borderWidth: 2,
+                cornerRadius: 8,
+                callbacks: {
+                  label: function (context) {
+                    const total = context.dataset.data.reduce(
+                      (a, b) => a + b,
+                      0
+                    );
+                    const percentage = ((context.parsed / total) * 100).toFixed(
+                      1
+                    );
+                    return `${context.label}: ${context.parsed.toLocaleString(
+                      "en-IN"
+                    )} (${percentage}%)`;
+                  },
+                },
+              },
+            },
+            animation: { animateRotate: true, duration: 2000 },
+          },
+        });
+      }
+
+      function populateSupportYearFilter() {
+        const supportYearFilter = document.getElementById("supportYearFilter");
+
+        if (!scholarshipData || scholarshipData.length === 0) {
+          supportYearFilter.innerHTML = '<option value="">No data</option>';
+          supportYearFilter.disabled = true;
+          return;
+        }
+
+        const years = [...new Set(scholarshipData.map((item) => item.year))]
+          .sort()
+          .reverse();
+
+        supportYearFilter.innerHTML = '<option value="">All Years</option>';
+        years.forEach((year) => {
+          supportYearFilter.innerHTML += `<option value="${year}">${year}</option>`;
+        });
+        supportYearFilter.disabled = false;
+      }
+
+      function updateSupportTypeChart() {
+        const selectedYear = document.getElementById("supportYearFilter").value;
+        let yearFilteredData = scholarshipData;
+
+        if (selectedYear) {
+          yearFilteredData = scholarshipData.filter(
+            (item) => item.year === selectedYear
+          );
+        }
+
+        // Recreate support type chart with filtered data
+        const supportTypeData = {};
+        yearFilteredData.forEach((item) => {
+          const supportType = categorizeSupportType(item);
+          if (!supportTypeData[supportType]) {
+            supportTypeData[supportType] = 0;
+          }
+          // supportTypeData[supportType] += item.amount || 0;
+          supportTypeData[supportType] += 1 || 0;
+        });
+
+        const labels = Object.keys(supportTypeData);
+        const data = Object.values(supportTypeData);
+
+        if (charts.supportType) {
+          charts.supportType.data.labels = labels;
+          charts.supportType.data.datasets[0].data = data;
+          charts.supportType.update();
+        }
+      }
+
+      function populateSectionFilter() {
+        const sectionFilter = document.getElementById("sectionFilter");
+        sectionFilter.innerHTML = '<option value="">All Sections</option>';
+        USER_SECTIONS.forEach((section) => {
+          sectionFilter.innerHTML += `<option value="${section.name}">${section.name}</option>`;
+        });
+      }
+
       function updateConfigNotice() {
         const notice = document.getElementById("config-notice");
+        const sectionNotice = document.getElementById("section-notice");
+        const scholarshipNotice = document.getElementById("scholarship-notice");
+
         if (
           USE_LIVE_DATA &&
           SCRIPT_URL !== "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE"
         ) {
           notice.style.display = "none";
+          sectionNotice.style.display = "none";
         } else {
           notice.style.display = "block";
+          sectionNotice.style.display = "none";
+        }
+
+        // Show scholarship notice if not configured
+        if (
+          SCHOLARSHIP_SCRIPT_URL === "YOUR_SCHOLARSHIP_APPS_SCRIPT_URL_HERE"
+        ) {
+          scholarshipNotice.style.display = "block";
+        } else {
+          scholarshipNotice.style.display = "none";
         }
       }
 
@@ -531,6 +886,7 @@
           showLoading();
 
           let result;
+          let scholarshipResult;
 
           if (
             USE_LIVE_DATA &&
@@ -547,17 +903,36 @@
             if (result.status === "error") {
               throw new Error(result.error);
             }
+
+            // Fetch scholarship data if URL is configured
+            if (
+              SCHOLARSHIP_SCRIPT_URL !== "YOUR_SCHOLARSHIP_APPS_SCRIPT_URL_HERE"
+            ) {
+              try {
+                const scholarshipResponse = await fetch(
+                  `${SCHOLARSHIP_SCRIPT_URL}?action=getData`
+                );
+                if (scholarshipResponse.ok) {
+                  scholarshipResult = await scholarshipResponse.json();
+                  if (scholarshipResult.status === "success") {
+                    scholarshipData = scholarshipResult.data || [];
+                  }
+                }
+              } catch (e) {
+                console.warn("Could not fetch scholarship data:", e);
+              }
+            }
           } else {
             // Use sample data matching your Apps Script structure
             result = generateSampleData();
+            scholarshipData = generateSampleScholarshipData();
           }
-
           globalData = result.data || {};
           globalSummary = result.summary || {};
 
           // Process and fix dates
-          Object.keys(globalData).forEach(section => {
-            globalData[section].forEach(item => {
+          Object.keys(globalData).forEach((section) => {
+            globalData[section].forEach((item) => {
               if (item.parsedDate) {
                 item.parsedDate = new Date(item.parsedDate);
               }
@@ -574,114 +949,73 @@
 
       // Generate sample data matching your Apps Script structure
       function generateSampleData() {
-        const educationData = [
-          {
-            id: "education_1",
-            section: "Education",
-            date: "Feb 2025",
-            description: "SEED Contribution 11 students",
-            amount: 141500,
-            finalAmount: 141500,
-            type: "NEFT Transaction",
-            category: "Educational Support",
-            parsedDate: new Date("2025-02-15"),
-          },
-          {
-            id: "education_2",
-            section: "Education",
-            date: "Feb 2025",
-            description: "Scholarships for 52 students",
-            amount: 528000,
-            finalAmount: 528000,
-            type: "NEFT Transaction",
-            category: "Scholarships",
-            parsedDate: new Date("2025-02-20"),
-          },
-          {
-            id: "education_3",
-            section: "Education",
-            date: "Dec 2024",
-            description: "Semester Fees for two students",
-            amount: 27000,
-            finalAmount: 27000,
-            type: "NEFT Transaction",
-            category: "Institution Fees",
-            parsedDate: new Date("2024-12-15"),
-          }
-        ];
+        const educationData = [];
 
-        const womenEmpowermentData = [
-          {
-            id: "women_empowerment_1",
-            section: "Women Empowerment",
-            date: "Jan 2025",
-            description: "Skill Development Workshop",
-            amount: 25000,
-            finalAmount: 25000,
-            type: "NEFT Transaction",
-            category: "Skill Development",
-            parsedDate: new Date("2025-01-15"),
-          },
-          {
-            id: "women_empowerment_2",
-            section: "Women Empowerment",
-            date: "Dec 2024",
-            description: "Microfinance Support",
-            amount: 50000,
-            finalAmount: 50000,
-            type: "NEFT Transaction",
-            category: "Financial Assistance",
-            parsedDate: new Date("2024-12-10"),
-          }
-        ];
+        const womenEmpowermentData = [];
 
-        const welfareData = [
-          {
-            id: "welfare_1",
-            section: "Welfare",
-            date: "Feb 2025",
-            description: "Food Distribution Program",
-            amount: 35000,
-            finalAmount: 35000,
-            type: "Cash",
-            category: "Food & Nutrition",
-            parsedDate: new Date("2025-02-05"),
-          },
-          {
-            id: "welfare_2",
-            section: "Welfare",
-            date: "Jan 2025",
-            description: "Medical Camp",
-            amount: 40000,
-            finalAmount: 40000,
-            type: "NEFT Transaction",
-            category: "Medical Care",
-            parsedDate: new Date("2025-01-20"),
-          }
-        ];
+        const welfareData = [];
+
+        const environmentData = [];
 
         const data = {
-          "Education": educationData,
+          Education: educationData,
           "Women Empowerment": womenEmpowermentData,
-          "Welfare": welfareData
+          Welfare: welfareData,
+          Environment: environmentData,
         };
 
         const summary = {};
-        Object.keys(data).forEach(section => {
+        Object.keys(data).forEach((section) => {
           summary[section] = {
             totalRecords: data[section].length,
-            totalAmount: data[section].reduce((sum, item) => sum + item.finalAmount, 0),
-            categories: [...new Set(data[section].map(item => item.category))]
+            totalAmount: data[section].reduce(
+              (sum, item) => sum + item.finalAmount,
+              0
+            ),
+            categories: [
+              ...new Set(data[section].map((item) => item.category)),
+            ],
           };
         });
 
         return {
           data: data,
           summary: summary,
-          totalRecords: Object.values(data).reduce((sum, arr) => sum + arr.length, 0),
+          totalRecords: Object.values(data).reduce(
+            (sum, arr) => sum + arr.length,
+            0
+          ),
           lastUpdated: new Date().toISOString(),
           status: "success",
         };
+      }
+
+      // Generate sample scholarship data
+      function generateSampleScholarshipData() {
+        return [];
+      }
+
+      function categorizeSupportType(item) {
+        // Check if this is a 4-year support entry from the data
+        if (
+          item.is4YearSupport ||
+          (item.supportType &&
+            item.supportType.toLowerCase().includes("4 year support"))
+        ) {
+          return "4 Year Support";
+        }
+
+        const amount = item.amount || 0;
+
+        if (amount <= 5000) {
+          return "Exam Fee (<5K)";
+        } else if (amount > 10000 && amount < 15000) {
+          return "College Fees (10K-15K)";
+        } else if (amount >= 15000) {
+          return "Out of State (≥15K)";
+        } else {
+          return "Education Support (Other)";
+        }
       }
 
       function updateDashboard() {
@@ -693,12 +1027,12 @@
 
       function updateFilteredData() {
         const selectedSection = document.getElementById("sectionFilter").value;
-        
+
         if (selectedSection) {
           filteredData = globalData[selectedSection] || [];
         } else {
           filteredData = [];
-          Object.values(globalData).forEach(sectionData => {
+          Object.values(globalData).forEach((sectionData) => {
             filteredData.push(...sectionData);
           });
         }
@@ -717,43 +1051,60 @@
       }
 
       function updateSummaryCards() {
-        const totalAmount = filteredData.reduce((sum, item) => sum + (item.finalAmount || 0), 0);
-        const avgAmount = filteredData.length > 0 ? totalAmount / filteredData.length : 0;
-        const activeSections = Object.keys(globalData).filter(section => 
-          globalData[section] && globalData[section].length > 0
+        const totalAmount = filteredData.reduce(
+          (sum, item) => sum + (item.finalAmount || 0),
+          0
+        );
+        const avgAmount =
+          filteredData.length > 0 ? totalAmount / filteredData.length : 0;
+        const activeSections = Object.keys(globalData).filter(
+          (section) => globalData[section] && globalData[section].length > 0
         ).length;
 
-        document.getElementById("total-amount").textContent = `₹${totalAmount.toLocaleString("en-IN")}`;
-        document.getElementById("total-transactions").textContent = filteredData.length;
-        document.getElementById("avg-amount").textContent = `₹${Math.round(avgAmount).toLocaleString("en-IN")}`;
+        document.getElementById(
+          "total-amount"
+        ).textContent = `₹${totalAmount.toLocaleString("en-IN")}`;
+        document.getElementById("total-transactions").textContent =
+          filteredData.length;
+        document.getElementById("avg-amount").textContent = `₹${Math.round(
+          avgAmount
+        ).toLocaleString("en-IN")}`;
         document.getElementById("active-sections").textContent = activeSections;
 
         // Update change indicators
         const selectedSection = document.getElementById("sectionFilter").value;
-        const sectionText = selectedSection ? `${selectedSection} section` : "all sections";
-        
-        document.getElementById("total-change").innerHTML = `<span class="positive">From ${sectionText}</span>`;
-        document.getElementById("transaction-change").innerHTML = `<span class="positive">Active records</span>`;
-        document.getElementById("avg-change").innerHTML = `<span class="positive">Per transaction</span>`;
+        const sectionText = selectedSection
+          ? `${selectedSection} section`
+          : "all sections";
+
+        document.getElementById(
+          "total-change"
+        ).innerHTML = `<span class="positive">From ${sectionText}</span>`;
+        document.getElementById(
+          "transaction-change"
+        ).innerHTML = `<span class="positive">Active records</span>`;
+        document.getElementById(
+          "avg-change"
+        ).innerHTML = `<span class="positive">Per transaction</span>`;
       }
 
       function updateSectionOverview() {
         const container = document.getElementById("section-overview");
         const selectedSection = document.getElementById("sectionFilter").value;
-        
+
         if (selectedSection) {
-          container.style.display = 'none';
+          container.style.display = "none";
           return;
         }
-        
-        container.style.display = 'grid';
-        container.innerHTML = '';
 
-        Object.keys(globalSummary).forEach(section => {
+        container.style.display = "grid";
+        container.innerHTML = "";
+
+        Object.keys(globalSummary).forEach((section) => {
           const summary = globalSummary[section];
-          const sectionClass = section.toLowerCase().replace(/\s+/g, '-');
-          
-          const card = document.createElement('div');
+          const sectionClass = section.toLowerCase().replace(/\s+/g, "-");
+
+          const card = document.createElement("div");
           card.className = `section-card ${sectionClass}`;
           card.innerHTML = `
             <h3>${section}</h3>
@@ -764,7 +1115,9 @@
               </div>
               <div class="section-stat">
                 <div class="label">Amount</div>
-                <div class="value">₹${(summary.totalAmount / 1000).toFixed(0)}k</div>
+                <div class="value">₹${(summary.totalAmount / 1000).toFixed(
+                  0
+                )}k</div>
               </div>
               <div class="section-stat">
                 <div class="label">Categories</div>
@@ -782,33 +1135,41 @@
         createPaymentChart();
         createMonthlyChart();
         createTopExpensesChart();
+        createSupportTypeChart();
         populateYearFilter();
+        populateSupportYearFilter();
       }
 
       function createSectionChart() {
         const ctx = document.getElementById("sectionChart").getContext("2d");
+        const chartContainer = document.getElementById("all-section");
 
         if (charts.section) {
           charts.section.destroy();
         }
 
-        // If a specific section is selected, skip this chart
+        // If a specific section is selected, hide this entire chart container
         const selectedSection = document.getElementById("sectionFilter").value;
         if (selectedSection) {
-          ctx.canvas.style.display = 'none';
+          chartContainer.style.display = "none";
           return;
         }
-        
-        ctx.canvas.style.display = 'block';
+
+        chartContainer.style.display = "block";
 
         const sectionData = {};
-        Object.keys(globalData).forEach(section => {
-          sectionData[section] = globalData[section].reduce((sum, item) => sum + (item.finalAmount || 0), 0);
+        Object.keys(globalData).forEach((section) => {
+          sectionData[section] = globalData[section].reduce(
+            (sum, item) => sum + (item.finalAmount || 0),
+            0
+          );
         });
 
         const labels = Object.keys(sectionData);
         const data = Object.values(sectionData);
-        const colors = labels.map(label => colorPalettes.sections[label] || '#64748b');
+        const colors = labels.map(
+          (label) => colorPalettes.sections[label] || "#64748b"
+        );
 
         charts.section = new Chart(ctx, {
           type: "doughnut",
@@ -841,9 +1202,16 @@
                 backgroundColor: "rgba(0, 0, 0, 0.9)",
                 callbacks: {
                   label: function (context) {
-                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                    const percentage = ((context.parsed / total) * 100).toFixed(1);
-                    return `${context.label}: ₹${context.parsed.toLocaleString("en-IN")} (${percentage}%)`;
+                    const total = context.dataset.data.reduce(
+                      (a, b) => a + b,
+                      0
+                    );
+                    const percentage = ((context.parsed / total) * 100).toFixed(
+                      1
+                    );
+                    return `${context.label}: ₹${context.parsed.toLocaleString(
+                      "en-IN"
+                    )} (${percentage}%)`;
                   },
                 },
               },
@@ -909,9 +1277,16 @@
                 cornerRadius: 8,
                 callbacks: {
                   label: function (context) {
-                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                    const percentage = ((context.parsed / total) * 100).toFixed(1);
-                    return `${context.label}: ₹${context.parsed.toLocaleString("en-IN")} (${percentage}%)`;
+                    const total = context.dataset.data.reduce(
+                      (a, b) => a + b,
+                      0
+                    );
+                    const percentage = ((context.parsed / total) * 100).toFixed(
+                      1
+                    );
+                    return `${context.label}: ₹${context.parsed.toLocaleString(
+                      "en-IN"
+                    )} (${percentage}%)`;
                   },
                 },
               },
@@ -970,9 +1345,16 @@
                 backgroundColor: "rgba(0, 0, 0, 0.9)",
                 callbacks: {
                   label: function (context) {
-                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                    const percentage = ((context.parsed / total) * 100).toFixed(1);
-                    return `${context.label}: ₹${context.parsed.toLocaleString("en-IN")} (${percentage}%)`;
+                    const total = context.dataset.data.reduce(
+                      (a, b) => a + b,
+                      0
+                    );
+                    const percentage = ((context.parsed / total) * 100).toFixed(
+                      1
+                    );
+                    return `${context.label}: ₹${context.parsed.toLocaleString(
+                      "en-IN"
+                    )} (${percentage}%)`;
                   },
                 },
               },
@@ -1041,85 +1423,15 @@
                 backgroundColor: "rgba(0, 0, 0, 0.9)",
                 callbacks: {
                   label: function (context) {
-                    return `Expenses: ₹${context.parsed.y.toLocaleString("en-IN")}`;
+                    return `Expenses: ₹${context.parsed.y.toLocaleString(
+                      "en-IN"
+                    )}`;
                   },
                 },
               },
             },
             scales: {
               y: {
-                beginAtZero: true,
-                ticks: {
-                  callback: function (value) {
-                    return "₹" + value.toLocaleString("en-IN");
-                  },
-                },
-              },
-            },
-            animation: { duration: 2000, easing: "easeInOutQuart" },
-          },
-        });
-      }
-
-      function createTopExpensesChart() {
-        const ctx = document.getElementById("topExpensesChart").getContext("2d");
-
-        if (charts.topExpenses) {
-          charts.topExpenses.destroy();
-        }
-
-        // Get top 5 expenses by finalAmount
-        const topExpenses = [...filteredData]
-          .sort((a, b) => (b.finalAmount || 0) - (a.finalAmount || 0))
-          .slice(0, 5);
-
-        const labels = topExpenses.map((item) => {
-          const desc = item.description || "No description";
-          return desc.length > 25 ? desc.substring(0, 25) + "..." : desc;
-        });
-        const data = topExpenses.map((item) => item.finalAmount || 0);
-
-        charts.topExpenses = new Chart(ctx, {
-          type: "bar",
-          data: {
-            labels: labels,
-            datasets: [
-              {
-                label: "Amount",
-                data: data,
-                backgroundColor: colorPalettes.expenses.slice(0, data.length),
-                borderRadius: 8,
-                borderSkipped: false,
-              },
-            ],
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            indexAxis: "y",
-            plugins: {
-              legend: { display: false },
-              tooltip: {
-                backgroundColor: "rgba(0, 0, 0, 0.9)",
-                callbacks: {
-                  title: function (context) {
-                    const index = context[0].dataIndex;
-                    return topExpenses[index].description || "No description";
-                  },
-                  label: function (context) {
-                    const index = context.dataIndex;
-                    const item = topExpenses[index];
-                    return [
-                      `Amount: ₹${context.parsed.x.toLocaleString("en-IN")}`,
-                      `Section: ${item.section || 'N/A'}`,
-                      `Category: ${item.category || 'N/A'}`
-                    ];
-                  },
-                },
-              },
-            },
-            scales: {
-              x: {
                 beginAtZero: true,
                 ticks: {
                   callback: function (value) {
