@@ -149,17 +149,29 @@
       }
 
       .section-overview {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 20px;
-        padding: 30px;
-        background: #f1f5f9;
-      }
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  padding: 80px;
+  background: #f1f5f9;
+}
+
+@media (max-width: 1024px) {
+  .section-overview {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .section-overview {
+    grid-template-columns: 1fr;
+  }
+}
 
       .section-card {
         background: white;
         border-radius: 15px;
-        padding: 25px;
+        padding: 40px 25px;
         box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
         border-left: 5px solid;
         transition: transform 0.3s ease;
@@ -183,6 +195,25 @@
 
       .section-card.environment {
         border-left-color: #06b6d4;
+      }
+      .section-card.nature-gardening {
+        border-left-color: #84cc16;
+      }
+
+      .section-card.youth-leadership {
+        border-left-color: #f59e0b;
+      }
+
+      .section-card.releif-activities {
+        border-left-color: #ef4444;
+      }
+
+      .section-card.special-request-programs {
+        border-left-color: #8b5cf6;
+      }
+
+      .section-card.others {
+        border-left-color: #64748b;
       }
 
       .section-card h3 {
@@ -460,7 +491,7 @@
                 id="supportYearFilter"
                 onchange="updateSupportTypeChart()"
               >
-                <option value="">All Years</option>
+                <!-- <option value="">All Years</option> -->
               </select>
             </div>
           </div>
@@ -482,8 +513,6 @@
             <canvas id="categoryChart"></canvas>
           </div>
         </div>
-
-        
 
         <div class="chart-container">
           <div class="chart-header">
@@ -537,7 +566,7 @@
     <script>
       // Configuration - Replace with your Google Apps Script Web App URL
       const SCRIPT_URL =
-        "https://script.google.com/macros/s/AKfycby4Z64vJSpwYbCRLcKdIcJiqipeBVP69F-j9ZW83xyWtXUr5xPmD9G0kCdVSvYQv8zB/exec";
+        "https://script.google.com/macros/s/AKfycbw0LGQLzNEGgSqDQEUq1TEo3DMJMLtBNGQFBV_uH6ijEiWsFBCy8CfSw0e93Iz11EPY/exec";
 
       // SCHOLARSHIP SHEET URL - Add your scholarship sheet Apps Script URL here
       const SCHOLARSHIP_SCRIPT_URL =
@@ -548,10 +577,15 @@
 
       // USER-DEFINED SECTIONS - Add or modify sections here
       const USER_SECTIONS = [
-        { name: "Education", color: "#4f46e5" },
-        { name: "Women Empowerment", color: "#ec4899" },
-        { name: "Welfare", color: "#10b981" },
-        { name: "Environment", color: "#06b6d4" },
+        { name: "Education", color: "#4f46e5" }, // Indigo
+        { name: "Women Empowerment", color: "#ec4899" }, // Pink
+        { name: "Welfare", color: "#10b981" }, // Green
+        { name: "Environment", color: "#06b6d4" }, // Cyan
+        { name: "Nature Gardening", color: "#84cc16" }, // Lime
+        { name: "Youth Leadership", color: "#f59e0b" }, // Amber
+        { name: "Releif Activities", color: "#ef4444" }, // Red
+        { name: "Special Request Programs", color: "#8b5cf6" }, // Violet
+        { name: "Others", color: "#64748b" }, // Slate Gray
       ];
 
       let globalData = {};
@@ -580,7 +614,8 @@
           "#06b6d4",
           "#f59e0b",
         ],
-        payment: ["#4f46e5",
+        payment: [
+          "#4f46e5",
           "#7c3aed",
           "#ec4899",
           "#ef4444",
@@ -591,11 +626,13 @@
           "#f97316",
           "#84cc16",
           "#06b6d4",
-          "#f59e0b"],
+          "#f59e0b",
+        ],
         monthly: "#6366f1",
         expenses: ["#ef4444", "#dc2626", "#b91c1c", "#991b1b", "#7f1d1d"],
-        
-        supportTypes: ["#4f46e5",
+
+        supportTypes: [
+          "#4f46e5",
           "#7c3aed",
           "#ec4899",
           "#ef4444",
@@ -606,7 +643,8 @@
           "#f97316",
           "#84cc16",
           "#06b6d4",
-          "#f59e0b"],
+          "#f59e0b",
+        ],
       };
 
       // Initialize dashboard
@@ -793,6 +831,7 @@
             animation: { animateRotate: true, duration: 2000 },
           },
         });
+        updateSupportTypeChart();
       }
 
       function populateSupportYearFilter() {
@@ -807,8 +846,7 @@
         const years = [...new Set(scholarshipData.map((item) => item.year))]
           .sort()
           .reverse();
-
-        supportYearFilter.innerHTML = '<option value="">All Years</option>';
+        supportYearFilter.innerHTML = '';
         years.forEach((year) => {
           supportYearFilter.innerHTML += `<option value="${year}">${year}</option>`;
         });
@@ -824,7 +862,6 @@
             (item) => item.year === selectedYear
           );
         }
-
         // Recreate support type chart with filtered data
         const supportTypeData = {};
         yearFilteredData.forEach((item) => {
