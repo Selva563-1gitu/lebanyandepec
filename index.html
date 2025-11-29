@@ -149,24 +149,24 @@
       }
 
       .section-overview {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-  padding: 80px;
-  background: #f1f5f9;
-}
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        padding: 80px;
+        background: #f1f5f9;
+      }
 
-@media (max-width: 1024px) {
-  .section-overview {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
+      @media (max-width: 1024px) {
+        .section-overview {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
 
-@media (max-width: 768px) {
-  .section-overview {
-    grid-template-columns: 1fr;
-  }
-}
+      @media (max-width: 768px) {
+        .section-overview {
+          grid-template-columns: 1fr;
+        }
+      }
 
       .section-card {
         background: white;
@@ -846,7 +846,7 @@
         const years = [...new Set(scholarshipData.map((item) => item.year))]
           .sort()
           .reverse();
-        supportYearFilter.innerHTML = '';
+        supportYearFilter.innerHTML = "";
         years.forEach((year) => {
           supportYearFilter.innerHTML += `<option value="${year}">${year}</option>`;
         });
@@ -1033,15 +1033,54 @@
       }
 
       function categorizeSupportType(item) {
-        // Check if this is a 4-year support entry from the data
-        if (
-          item.is4YearSupport ||
-          (item.supportType &&
-            item.supportType.toLowerCase().includes("4 year support"))
-        ) {
-          return "4 Year Support";
+        // Check if supportType field exists and use it for categorization
+        if (item.supportType) {
+          const supportType = item.supportType.toString().toLowerCase().trim();
+
+          // Check for 4 Year Support
+          if (
+            supportType.includes("4 year") ||
+            supportType.includes("full support")
+          ) {
+            return "4 Year Support";
+          }
+
+          // Check for College Fees
+          if (
+            supportType.includes("college fee") ||
+            supportType.includes("semester fee") ||
+            supportType.includes("tuition")
+          ) {
+            return "College Fees (10K-15K)";
+          }
+
+          // Check for Out of State / JOSSA
+          if (
+            supportType.includes("out of state") ||
+            supportType.includes("jossa") ||
+            supportType.includes("josaa")
+          ) {
+            return "Out of State (≥15K)";
+          }
+
+          // Check for Exam Fee
+          if (
+            supportType.includes("exam") ||
+            supportType.includes("entrance")
+          ) {
+            return "Exam Fee (<5K)";
+          }
+
+          // Check for Education Support
+          if (
+            supportType.includes("education support") ||
+            supportType.includes("educational support")
+          ) {
+            return "Education Support (Other)";
+          }
         }
 
+        // Fallback to amount-based categorization if supportType is not available or doesn't match
         const amount = item.amount || 0;
 
         if (amount <= 5000) {
