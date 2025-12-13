@@ -499,7 +499,26 @@
             <canvas id="supportTypeChart"></canvas>
           </div>
         </div>
-
+        <div class="chart-container">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">Department Distribution</div>
+              <div class="chart-subtitle">Students by department/branch</div>
+            </div>
+            <div class="filter-controls">
+              <select
+                class="filter-select"
+                id="deptYearFilter"
+                onchange="updateDepartmentChart()"
+              >
+                <!-- Year options will be populated dynamically -->
+              </select>
+            </div>
+          </div>
+          <div class="chart-canvas">
+            <canvas id="departmentChart"></canvas>
+          </div>
+        </div>
         <div class="chart-container">
           <div class="chart-header">
             <div>
@@ -570,7 +589,7 @@
 
       // SCHOLARSHIP SHEET URL - Add your scholarship sheet Apps Script URL here
       const SCHOLARSHIP_SCRIPT_URL =
-        "https://script.google.com/macros/s/AKfycbzCVufo0qzebXxsKn0QStfQ6URp2RymtDudZsSHeGH-VJr6qvaUs-3eTGp8EUcsY3CY/exec";
+        "https://script.google.com/macros/s/AKfycbzT6pMRrpVlY-FXzb_N-sNv4pGD1-hVTU-mRbEWlRf-7nf7H1ldldIvYs92P4SAs0lk/exec";
 
       // Set to true to use live Google Sheets data, false to use sample data
       const USE_LIVE_DATA = true;
@@ -638,6 +657,21 @@
           "Out of State (≥15K)": "#10b981", // Green
           "Exam Fee (<5K)": "#f59e0b", // Orange/Amber
           "Education Support (Other)": "#ec4899", // Pink
+        },
+        // Inside colorPalettes object, add:
+        departments: {
+          IT: "#4f46e5", // Indigo
+          CSC: "#7c3aed", // Purple
+          EIE: "#ec4899", // Pink
+          EEE: "#f59e0b", // Amber
+          MTE: "#10b981", // Green
+          ME: "#06b6d4", // Cyan
+          CHE: "#ef4444", // Red
+          CE: "#8b5cf6", // Violet
+          ECE: "#f97316", // Orange
+          BME: "#84cc16", // Lime
+          AIDS: "#14b8a6", // Teal
+          Others: "#64748b", // Gray
         },
       };
 
@@ -828,6 +862,106 @@
         });
         updateSupportTypeChart();
       }
+      function createDepartmentChart() {
+        const ctx = document.getElementById("departmentChart").getContext("2d");
+        const chartContainer = ctx.canvas.closest(".chart-container");
+
+        if (charts.department) {
+          charts.department.destroy();
+        }
+
+        // Only show this chart when Education section is selected
+        const selectedSection = document.getElementById("sectionFilter").value;
+        if (selectedSection !== "Education") {
+          chartContainer.style.display = "none";
+          return;
+        }
+
+        chartContainer.style.display = "block";
+
+        // Check if scholarship data is available
+        if (!scholarshipData || scholarshipData.length === 0) {
+          ctx.canvas.parentElement.innerHTML = `
+      <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #64748b;">
+        <p>No scholarship data available. Please configure SCHOLARSHIP_SCRIPT_URL.</p>
+      </div>
+    `;
+          return;
+        }
+
+        // Group scholarship data by department
+        const departmentData = {};
+        scholarshipData.forEach((item) => {
+          const dept = item.department || "Others";
+          if (!departmentData[dept]) {
+            departmentData[dept] = 0;
+          }
+          departmentData[dept] += 1;
+        });
+
+        const labels = Object.keys(departmentData);
+        const data = Object.values(departmentData);
+
+        // Map colors based on department labels
+        const colors = labels.map(
+          (label) => colorPalettes.departments[label] || "#64748b"
+        );
+
+        charts.department = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: "Number of Students",
+                data: data,
+                backgroundColor: colors,
+                borderRadius: 8,
+                borderSkipped: false,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: "rgba(0, 0, 0, 0.9)",
+                titleColor: "#fff",
+                bodyColor: "#fff",
+                borderColor: "#10b981",
+                borderWidth: 2,
+                cornerRadius: 8,
+                callbacks: {
+                  label: function (context) {
+                    const total = context.dataset.data.reduce(
+                      (a, b) => a + b,
+                      0
+                    );
+                    const percentage = (
+                      (context.parsed.y / total) *
+                      100
+                    ).toFixed(1);
+                    return `Students: ${context.parsed.y} (${percentage}%)`;
+                  },
+                },
+              },
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  stepSize: 1,
+                },
+              },
+            },
+            animation: { duration: 2000, easing: "easeInOutQuart" },
+          },
+        });
+
+        updateDepartmentChart();
+      }
 
       function populateSupportYearFilter() {
         const supportYearFilter = document.getElementById("supportYearFilter");
@@ -847,7 +981,24 @@
         });
         supportYearFilter.disabled = false;
       }
+      function populateDeptYearFilter() {
+        const deptYearFilter = document.getElementById("deptYearFilter");
 
+        if (!scholarshipData || scholarshipData.length === 0) {
+          deptYearFilter.innerHTML = '<option value="">No data</option>';
+          deptYearFilter.disabled = true;
+          return;
+        }
+
+        const years = [...new Set(scholarshipData.map((item) => item.year))]
+          .sort()
+          .reverse();
+        deptYearFilter.innerHTML = "";
+        years.forEach((year) => {
+          deptYearFilter.innerHTML += `<option value="${year}">${year}</option>`;
+        });
+        deptYearFilter.disabled = false;
+      }
       function updateSupportTypeChart() {
         const selectedYear = document.getElementById("supportYearFilter").value;
         let yearFilteredData = scholarshipData;
@@ -881,6 +1032,41 @@
           charts.supportType.data.datasets[0].data = data;
           charts.supportType.data.datasets[0].backgroundColor = colors; // Add this line!
           charts.supportType.update();
+        }
+      }
+      function updateDepartmentChart() {
+        const selectedYear = document.getElementById("deptYearFilter").value;
+        let yearFilteredData = scholarshipData;
+
+        if (selectedYear) {
+          yearFilteredData = scholarshipData.filter(
+            (item) => item.year === selectedYear
+          );
+        }
+
+        // Recreate department chart with filtered data
+        const departmentData = {};
+        yearFilteredData.forEach((item) => {
+          const dept = item.department || "Others";
+          if (!departmentData[dept]) {
+            departmentData[dept] = 0;
+          }
+          departmentData[dept] += 1;
+        });
+
+        const labels = Object.keys(departmentData);
+        const data = Object.values(departmentData);
+
+        // Map colors based on department labels
+        const colors = labels.map(
+          (label) => colorPalettes.departments[label] || "#64748b"
+        );
+
+        if (charts.department) {
+          charts.department.data.labels = labels;
+          charts.department.data.datasets[0].data = data;
+          charts.department.data.datasets[0].backgroundColor = colors;
+          charts.department.update();
         }
       }
 
@@ -1213,8 +1399,10 @@
         createMonthlyChart();
         createTopExpensesChart();
         createSupportTypeChart();
+        createDepartmentChart(); // Add this line
         populateYearFilter();
         populateSupportYearFilter();
+        populateDeptYearFilter(); // Add this line
       }
 
       function createSectionChart() {
