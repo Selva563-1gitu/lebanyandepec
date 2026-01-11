@@ -522,6 +522,28 @@
         <div class="chart-container">
           <div class="chart-header">
             <div>
+              <div class="chart-title">Year/Semester Distribution</div>
+              <div class="chart-subtitle">
+                Students by academic year/semester
+              </div>
+            </div>
+            <div class="filter-controls">
+              <select
+                class="filter-select"
+                id="yearSemYearFilter"
+                onchange="updateYearSemesterChart()"
+              >
+                <!-- Year options will be populated dynamically -->
+              </select>
+            </div>
+          </div>
+          <div class="chart-canvas">
+            <canvas id="yearSemesterChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-container">
+          <div class="chart-header">
+            <div>
               <div class="chart-title">Expenses by Category</div>
               <div class="chart-subtitle">
                 Category-wise expense distribution
@@ -589,7 +611,7 @@
 
       // SCHOLARSHIP SHEET URL - Add your scholarship sheet Apps Script URL here
       const SCHOLARSHIP_SCRIPT_URL =
-        "https://script.google.com/macros/s/AKfycbzT6pMRrpVlY-FXzb_N-sNv4pGD1-hVTU-mRbEWlRf-7nf7H1ldldIvYs92P4SAs0lk/exec";
+        "https://script.google.com/macros/s/AKfycbzyjTGRuO-UPJvzAuYuChULXEo98zUWpt97AvBdpYkAJtN1yHQczp6xAtnTAsE552d1/exec";
 
       // Set to true to use live Google Sheets data, false to use sample data
       const USE_LIVE_DATA = true;
@@ -671,6 +693,15 @@
           ECE: "#f97316", // Orange
           BME: "#84cc16", // Lime
           AIDS: "#14b8a6", // Teal
+          Others: "#64748b", // Gray
+        },
+        // Inside colorPalettes object, add:
+        // Inside colorPalettes object, replace yearSemesters with:
+        yearSemesters: {
+          "1st Year": "#4f46e5", // Indigo
+          "2nd Year": "#7c3aed", // Purple
+          "3rd Year": "#ec4899", // Pink
+          "4th Year": "#f59e0b", // Amber
           Others: "#64748b", // Gray
         },
       };
@@ -962,6 +993,188 @@
 
         updateDepartmentChart();
       }
+      // Helper function to normalize semester/year data into standardized year format
+      function normalizeYearSemester(yearSemValue) {
+        if (!yearSemValue) return "Others";
+
+        const value = yearSemValue.toString().trim().toUpperCase();
+
+        // Map semester numbers to years
+        const semesterToYear = {
+          1: "1st Year",
+          I: "1st Year",
+          "SEM 1": "1st Year",
+          "SEMESTER 1": "1st Year",
+          2: "1st Year",
+          II: "1st Year",
+          "SEM 2": "1st Year",
+          "SEMESTER 2": "1st Year",
+          3: "2nd Year",
+          III: "2nd Year",
+          "SEM 3": "2nd Year",
+          "SEMESTER 3": "2nd Year",
+          4: "2nd Year",
+          IV: "2nd Year",
+          "SEM 4": "2nd Year",
+          "SEMESTER 4": "2nd Year",
+          5: "3rd Year",
+          V: "3rd Year",
+          "SEM 5": "3rd Year",
+          "SEMESTER 5": "3rd Year",
+          6: "3rd Year",
+          VI: "3rd Year",
+          "SEM 6": "3rd Year",
+          "SEMESTER 6": "3rd Year",
+          7: "4th Year",
+          VII: "4th Year",
+          "SEM 7": "4th Year",
+          "SEMESTER 7": "4th Year",
+          8: "4th Year",
+          VIII: "4th Year",
+          "SEM 8": "4th Year",
+          "SEMESTER 8": "4th Year",
+        };
+
+        // Check direct mapping first
+        if (semesterToYear[value]) {
+          return semesterToYear[value];
+        }
+
+        // Check if value already contains "year"
+        if (value.includes("1ST") || value.includes("FIRST")) return "1st Year";
+        if (value.includes("2ND") || value.includes("SECOND"))
+          return "2nd Year";
+        if (value.includes("3RD") || value.includes("THIRD")) return "3rd Year";
+        if (value.includes("4TH") || value.includes("FOURTH"))
+          return "4th Year";
+
+        // Try to extract number from the string
+        const numMatch = value.match(/\d+/);
+        if (numMatch) {
+          const num = parseInt(numMatch[0]);
+          if (num >= 1 && num <= 2) return "1st Year";
+          if (num >= 3 && num <= 4) return "2nd Year";
+          if (num >= 5 && num <= 6) return "3rd Year";
+          if (num >= 7 && num <= 8) return "4th Year";
+        }
+
+        return "Others";
+      }
+      function createYearSemesterChart() {
+        const ctx = document
+          .getElementById("yearSemesterChart")
+          .getContext("2d");
+        const chartContainer = ctx.canvas.closest(".chart-container");
+
+        if (charts.yearSemester) {
+          charts.yearSemester.destroy();
+        }
+
+        // Only show this chart when Education section is selected
+        const selectedSection = document.getElementById("sectionFilter").value;
+        if (selectedSection !== "Education") {
+          chartContainer.style.display = "none";
+          return;
+        }
+
+        chartContainer.style.display = "block";
+
+        // Check if scholarship data is available
+        if (!scholarshipData || scholarshipData.length === 0) {
+          ctx.canvas.parentElement.innerHTML = `
+      <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #64748b;">
+        <p>No scholarship data available. Please configure SCHOLARSHIP_SCRIPT_URL.</p>
+      </div>
+    `;
+          return;
+        }
+
+        // Group scholarship data by year (converting semester to year)
+        const yearSemData = {};
+        scholarshipData.forEach((item) => {
+          const normalizedYear = normalizeYearSemester(item.yearSemester);
+          if (!yearSemData[normalizedYear]) {
+            yearSemData[normalizedYear] = 0;
+          }
+          yearSemData[normalizedYear] += 1;
+        });
+
+        // Sort the labels: 1st Year, 2nd Year, 3rd Year, 4th Year, Others
+        const yearOrder = [
+          "1st Year",
+          "2nd Year",
+          "3rd Year",
+          "4th Year",
+          "Others",
+        ];
+        const labels = yearOrder.filter((year) => yearSemData[year]);
+        const data = labels.map((label) => yearSemData[label]);
+
+        // Map colors based on year labels
+        const yearColors = {
+          "1st Year": "#4f46e5", // Indigo
+          "2nd Year": "#7c3aed", // Purple
+          "3rd Year": "#ec4899", // Pink
+          "4th Year": "#f59e0b", // Amber
+          Others: "#64748b", // Gray
+        };
+
+        const colors = labels.map((label) => yearColors[label] || "#64748b");
+
+        charts.yearSemester = new Chart(ctx, {
+          type: "doughnut",
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                data: data,
+                backgroundColor: colors,
+                borderWidth: 3,
+                borderColor: "#fff",
+                hoverBorderWidth: 5,
+                hoverBorderColor: "#fff",
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: "bottom",
+                labels: {
+                  padding: 20,
+                  usePointStyle: true,
+                  font: { size: 12 },
+                },
+              },
+              tooltip: {
+                backgroundColor: "rgba(0, 0, 0, 0.9)",
+                titleColor: "#fff",
+                bodyColor: "#fff",
+                borderColor: "#10b981",
+                borderWidth: 2,
+                cornerRadius: 8,
+                callbacks: {
+                  label: function (context) {
+                    const total = context.dataset.data.reduce(
+                      (a, b) => a + b,
+                      0
+                    );
+                    const percentage = ((context.parsed / total) * 100).toFixed(
+                      1
+                    );
+                    return `${context.label}: ${context.parsed} students (${percentage}%)`;
+                  },
+                },
+              },
+            },
+            animation: { animateRotate: true, duration: 2000 },
+          },
+        });
+
+        updateYearSemesterChart();
+      }
 
       function populateSupportYearFilter() {
         const supportYearFilter = document.getElementById("supportYearFilter");
@@ -998,6 +1211,24 @@
           deptYearFilter.innerHTML += `<option value="${year}">${year}</option>`;
         });
         deptYearFilter.disabled = false;
+      }
+      function populateYearSemYearFilter() {
+        const yearSemYearFilter = document.getElementById("yearSemYearFilter");
+
+        if (!scholarshipData || scholarshipData.length === 0) {
+          yearSemYearFilter.innerHTML = '<option value="">No data</option>';
+          yearSemYearFilter.disabled = true;
+          return;
+        }
+
+        const years = [...new Set(scholarshipData.map((item) => item.year))]
+          .sort()
+          .reverse();
+        yearSemYearFilter.innerHTML = "";
+        years.forEach((year) => {
+          yearSemYearFilter.innerHTML += `<option value="${year}">${year}</option>`;
+        });
+        yearSemYearFilter.disabled = false;
       }
       function updateSupportTypeChart() {
         const selectedYear = document.getElementById("supportYearFilter").value;
@@ -1069,7 +1300,55 @@
           charts.department.update();
         }
       }
+      function updateYearSemesterChart() {
+        const selectedYear = document.getElementById("yearSemYearFilter").value;
+        let yearFilteredData = scholarshipData;
 
+        if (selectedYear) {
+          yearFilteredData = scholarshipData.filter(
+            (item) => item.year === selectedYear
+          );
+        }
+
+        // Recreate year chart with filtered data (converting semester to year)
+        const yearSemData = {};
+        yearFilteredData.forEach((item) => {
+          const normalizedYear = normalizeYearSemester(item.yearSemester);
+          if (!yearSemData[normalizedYear]) {
+            yearSemData[normalizedYear] = 0;
+          }
+          yearSemData[normalizedYear] += 1;
+        });
+
+        // Sort the labels
+        const yearOrder = [
+          "1st Year",
+          "2nd Year",
+          "3rd Year",
+          "4th Year",
+          "Others",
+        ];
+        const labels = yearOrder.filter((year) => yearSemData[year]);
+        const data = labels.map((label) => yearSemData[label]);
+
+        // Map colors
+        const yearColors = {
+          "1st Year": "#4f46e5",
+          "2nd Year": "#7c3aed",
+          "3rd Year": "#ec4899",
+          "4th Year": "#f59e0b",
+          Others: "#64748b",
+        };
+
+        const colors = labels.map((label) => yearColors[label] || "#64748b");
+
+        if (charts.yearSemester) {
+          charts.yearSemester.data.labels = labels;
+          charts.yearSemester.data.datasets[0].data = data;
+          charts.yearSemester.data.datasets[0].backgroundColor = colors;
+          charts.yearSemester.update();
+        }
+      }
       function populateSectionFilter() {
         const sectionFilter = document.getElementById("sectionFilter");
         sectionFilter.innerHTML = '<option value="">All Sections</option>';
@@ -1399,10 +1678,12 @@
         createMonthlyChart();
         createTopExpensesChart();
         createSupportTypeChart();
-        createDepartmentChart(); // Add this line
+        createDepartmentChart();
+        createYearSemesterChart(); // Add this line
         populateYearFilter();
         populateSupportYearFilter();
-        populateDeptYearFilter(); // Add this line
+        populateDeptYearFilter();
+        populateYearSemYearFilter(); // Add this line
       }
 
       function createSectionChart() {
